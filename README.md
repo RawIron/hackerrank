@@ -1,9 +1,15 @@
-## hackerrank-d
-solved hackerrank challenges
+## Solved Hackerrank Challenges
+
+### Arrays and Sorting
+one file per solved challenge. all the files make use of D's `#!/usr/bin/rdmd` magic. just make sure the files have _execution rights_.
+```
+./median.d
+```
 
 ## License
 
 Copyright (c) 2016, Michael RawIron
+
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
