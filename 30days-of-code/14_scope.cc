@@ -21,9 +21,10 @@ class Difference {
     int compute() {
 		if (computed) { return maximum; }
 
-        pair<vector<int>::iterator, vector<int>::iterator> minmax = std::minmax_element(elements.begin(), elements.end());
+        pair<vector<int>::const_iterator, vector<int>::const_iterator> minmax = std::minmax_element(elements.begin(), elements.end());
         maximum = *minmax.second - *minmax.first;
 		computed = true;
+
 		return maximum;
     }
 
