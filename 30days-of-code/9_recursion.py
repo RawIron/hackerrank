@@ -1,10 +1,6 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
-import math
 import os
-import random
-import re
-import sys
 import functools
 
 
