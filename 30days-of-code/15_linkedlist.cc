@@ -7,7 +7,7 @@ using namespace std;
 template<class T>
 class Node
 {
-    public:
+	public:
 	const T data;
 	Node<T>* next;
 
@@ -20,7 +20,7 @@ class Node
 
 template<class T>
 class MyList {
-    public:
+	public:
 	explicit MyList() : tail{nullptr}
 	{}
 
@@ -54,16 +54,16 @@ class MyList {
 
 template<typename T>
 vector<T> read_input() {
-    int n{};
-    cin >> n;
+	int n{};
+	cin >> n;
 	const int number_lines{n};
 
-    T item{};
+	T item{};
 	vector<T> data{};
-    for (int i{number_lines}; i>0; --i) {
-        cin >> item;
-        data.push_back(item);
-    }
+	for (int i{number_lines}; i>0; --i) {
+	    cin >> item;
+	    data.push_back(item);
+	}
 
 	return data;
 }
@@ -73,16 +73,16 @@ void solve(const vector<T> data) {
 	Node<T>* head{nullptr};
   	MyList<T> mylist{};
 
-    for (auto item: data) {
-        head = mylist.insert(head, item);
-    }	
+	for (auto item: data) {
+	    head = mylist.insert(head, item);
+	}
 
 	mylist.display(head);
 }
 
 
 int main() {
-    vector<int> data{};
+	vector<int> data{};
 	data = read_input<int>();
 
 	solve(data);
