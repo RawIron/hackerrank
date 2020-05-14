@@ -9,14 +9,14 @@ using Results = vector<Equation>;
 
 
 void use_side_effect(const int n) {
-    for (int i{1}; i<loops+1; i++) {
+    for (int i{1}; i<loops+1; ++i) {
         cout << n << " x " << i << " = " << n * i << endl;
     }
 }
 
 Results use_for(const int n) {
     Results multiplied{};
-    for (int i{1}; i<loops+1; i++) {
+    for (int i{1}; i<loops+1; ++i) {
         multiplied.push_back(Equation (n,i,n*i));
     }
     return multiplied;
@@ -28,9 +28,9 @@ void show(const Results results) {
     }
 }
 
-int main()
-{
-    int n;
+
+int main() {
+    int n{};
     cin >> n;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
