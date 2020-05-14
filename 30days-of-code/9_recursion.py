@@ -28,5 +28,6 @@ def write(number):
 
 if __name__ == '__main__':
     n = int(input())
+
     result = factorial(n)
     write(result)

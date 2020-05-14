@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 import math
 import os
@@ -34,4 +34,6 @@ def show(result):
 
 if __name__ == '__main__':
     n = int(input())
-    show(use_for(n))
+
+    create_equations = use_for
+    show(create_equations(n))
