@@ -18,4 +18,6 @@ set(daysofcode_SOURCES
 add_executable(run_tests ${daysofcode_SOURCES})
 target_link_libraries(run_tests boost_unit_test_framework)
 
+add_executable(loops 5_loops.cc)
 add_executable(scope 14_scope.cc)
+add_executable(linkedlist 15_linkedlist.cc)
