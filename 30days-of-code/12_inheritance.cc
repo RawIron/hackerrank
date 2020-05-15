@@ -1,9 +1,17 @@
 #include <iostream>
+#include <limits>
 #include <vector>
 #include <tuple>
 #include <numeric>
 
 using namespace std;
+
+
+namespace PersonIO {
+enum Entries {FristName, LastName, Id};
+using AsTuple = tuple<string, string, int>;
+}
+using TestScores = vector<int>;
 
 
 class Person {
@@ -32,7 +40,7 @@ class Person {
 
 class Student : public Person {
     private:
-	const vector<int> testScores;  
+	const TestScores testScores;  
 
     public:
    /**
@@ -40,7 +48,7 @@ class Student : public Person {
 	*/
 	explicit
 	Student(string firstName, string lastName, int identification,
-			vector<int> scores)
+			TestScores scores)
 		: Person{firstName, lastName, identification}, testScores{scores}
 	{}
 
@@ -66,49 +74,47 @@ class Student : public Person {
 };
 
 
-void solve(const string firstName, const string lastName, const int id,
-		const vector<int> scores)
-{
-    Student* s = new Student(firstName, lastName, id, scores);
+void solve(const PersonIO::AsTuple person, const vector<int> scores) {
+    Student* s = new Student(get<0>(person), get<1>(person), get<2>(person), scores);
     s->show();
     cout << "Grade: " << s->calculate() << endl;
 }
 
 
-tuple<string,string,int> read_person() {
+PersonIO::AsTuple readPerson() {
     string firstName{};
     string lastName{};
     int id{};
     cin >> firstName >> lastName >> id;
+	cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
 	return make_tuple(firstName, lastName, id);
 }
 
-vector<int> read_scores() {
+TestScores readScores() {
     int numScores{};
     cin >> numScores;
 
-    vector<int> scores{};
+    TestScores scores{};
     for(int i = 0; i < numScores; i++) {
         int score{};
         cin >> score;
         scores.push_back(score);
     }
+	cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
 	return scores;
 }
 
 
 int main() {
-    string firstName{};
-    string lastName{};
-    int id{};
-	tie(firstName, lastName, id) = read_person();
+	PersonIO::AsTuple person{};
+	person = readPerson();
 
-    vector<int> scores{};
-	scores = read_scores();
+    TestScores scores{};
+	scores = readScores();
 
-	solve(firstName, lastName, id, scores);
+	solve(person, scores);
 
     return 0;
 }
