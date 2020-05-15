@@ -20,4 +20,5 @@ target_link_libraries(run_tests boost_unit_test_framework)
 
 add_executable(loops 5_loops.cc)
 add_executable(scope 14_scope.cc)
+add_executable(inheritance 12_inheritance.cc)
 add_executable(linkedlist 15_linkedlist.cc)
