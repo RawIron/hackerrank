@@ -56,6 +56,7 @@ void testConvertsAreEqualFor(uint_fast32_t number) {
 	assert(ConvertUseMod(number) == ConvertUseBitSet(number));
 }
 
+
 int CountUseBitOp(uint_fast32_t number) {
     int longestStreak{0}, streak{0};
 
@@ -73,16 +74,13 @@ int CountUseBitOp(uint_fast32_t number) {
     return longestStreak;
 }
 
-tuple<string, short> solveUseBitOp() {
-    // input is between 1 and 10^6
-    uint_fast32_t n = readOne<uint_fast32_t>();
-
+tuple<string, short> solveUseBitOp(uint_fast32_t n) {
 	testConvertsAreEqualFor(n);
 
     function<string(uint_fast32_t)> int2binary = ConvertUseBitOp;
-    function<int(uint_fast32_t)> countOnes = CountUseBitOp;
-
     string binary = int2binary(n);
+
+    function<int(uint_fast32_t)> countOnes = CountUseBitOp;
     int streak = countOnes(n);
 
     return make_tuple(binary, streak);
@@ -90,10 +88,13 @@ tuple<string, short> solveUseBitOp() {
 
 
 int main() {
+    // input is between 1 and 10^6
+    uint_fast32_t n = readOne<uint_fast32_t>();
+
     string binary{};
     short streak{};
-
-    tie(binary, streak) = solveUseBitOp();
+    tie(binary, streak) = solveUseBitOp(n);
     cout << streak << endl;
+
     return 0;
 }
