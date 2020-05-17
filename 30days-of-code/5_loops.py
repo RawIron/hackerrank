@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
 
-import math
-import os
-import random
-import re
-import sys
-
 
 def use_side_effect(n):
     # minimal solution
