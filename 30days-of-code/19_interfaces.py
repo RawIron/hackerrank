@@ -36,7 +36,7 @@ class Calculator(AdvancedArithmetic):
             # ceil_sqrt(3) = 3
             div_sum += sqrt_n
 
-        # devisors are communatative
+        # each hit in the search finds 2 divisors
         #    6 // 2 == 3
         # => 6 // 3 == 2
         # 2,3 are divisors
