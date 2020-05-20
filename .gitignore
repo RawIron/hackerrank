@@ -26,3 +26,5 @@ __dummy.html
 # -----
 # cmake
 build/
+
+build_hs/
