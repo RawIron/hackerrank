@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+hs_source="$1"
+build_dir="build_hs"
+
+ghc -outputdir ./${build_dir} -o ./${build_dir}/$(basename "$hs_source" .hs) "$hs_source"
