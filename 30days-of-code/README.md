@@ -24,3 +24,16 @@ build a target
 ```
 make scope
 ```
+
+
+## Haskell
+
+create a build directory
+```
+mkdir build_hs
+```
+
+build a target
+```
+./make_hs 20_sort.hs
+```
