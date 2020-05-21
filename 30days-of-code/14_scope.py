@@ -7,10 +7,15 @@ class Difference:
         self.maximum = max(self.__elements) - min(self.__elements)
 
 
-_ = input()
-numbers = [int(e) for e in input().split(' ')]
+def read_input():
+    _ = input()
+    return [int(e) for e in input().split(' ')]
 
-difference = Difference(numbers)
-difference.compute()
 
-print(difference.maximum)
+if __name__ == "__main__":
+    numbers = read_input()
+
+    difference = Difference(numbers)
+    difference.compute()
+
+    print(difference.maximum)
