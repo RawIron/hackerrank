@@ -7,21 +7,21 @@ import System.IO
 
 main :: IO ()
 main = do
-    numbers <- getMany
-    let (counter:sorted) = bubbleSort numbers
+    numbers <- getMany :: IO [Int]
+    let (counter,sorted) = bubbleSort numbers
     putStrLn $ "Array is sorted in " ++ show counter ++ " swaps."
     putStrLn $ "First Element: " ++ show (head sorted)
     putStrLn $ "Last Element: " ++ show (last sorted)
 
 
-bubbleSort :: [Int] -> [Int]
-bubbleSort numbers = foldl (\(counter:acc) i -> bubbleOnce counter acc) (0:numbers) [1 .. length numbers]
+bubbleSort :: (Ord a, Integral b) => [a] -> (b,[a])
+bubbleSort items = foldl (\(counter,acc) i -> bubbleOnce counter acc) (0,items) [1..length items]
 
-bubbleOnce :: Int -> [Int] -> [Int]
-bubbleOnce counter numbers = bubbleUp counter [] (head numbers) (tail numbers)
+bubbleOnce :: (Ord a, Integral b) => b -> [a] -> (b,[a])
+bubbleOnce counter items = bubbleUp counter [] (head items) (tail items)
 
-bubbleUp :: Int -> [Int] -> Int -> [Int] -> [Int]
-bubbleUp counter swapped pivot [] = counter : swapped ++ [pivot]
+bubbleUp :: (Ord a, Integral b) => b -> [a] -> a -> [a]-> (b,[a])
+bubbleUp counter swapped pivot [] = (counter, swapped ++ [pivot])
 bubbleUp counter swapped pivot todo
     | pivot > head todo =
         bubbleUp (counter+1) (swapped ++ [head todo]) pivot (tail todo)
@@ -29,10 +29,10 @@ bubbleUp counter swapped pivot todo
         bubbleUp counter (swapped ++ [pivot]) (head todo) (tail todo)
 
 
-getMany :: IO [Int]
+getMany :: (Read a) => IO [a]
 getMany = do
     _ <- fmap read getLine :: IO Int
-    fmap (map read . words) getLine :: IO [Int]
+    fmap (map read . words) getLine
 
 getMultipleLines :: Int -> IO [String]
 getMultipleLines n
