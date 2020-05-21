@@ -22,5 +22,5 @@ minmax (x:xs) = foldl (\(low,high) item -> (min low item, max high item)) (x, x)
 
 getMany :: (Read a) => IO [a]
 getMany = do
-    _ <- fmap read getLine :: IO Int
+    _ <- read <$> getLine :: IO Int
     fmap (map read . words) getLine
