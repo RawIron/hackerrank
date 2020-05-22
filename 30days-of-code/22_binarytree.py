@@ -16,6 +16,7 @@ class Solution:
             root.right = cur
         return root
 
+
     def get_height(self, root_node):
         def longest_path(node, height):
             left_height = right_height = 0
@@ -33,6 +34,24 @@ class Solution:
 
         return longest_path(root_node, 0)
 
+
+    def level_order(self, root):
+        if root is None: return []
+
+        levels = []
+        next_level = []
+        current_level = [root]
+        while current_level:
+            levels.append(current_level)
+            next_level = []
+            for node in current_level:
+                if node.left is not None: next_level.append(node.left)
+                if node.right is not None: next_level.append(node.right)
+            current_level = next_level
+
+        return levels
+
+
 def read_input():
     n_lines = int(input())
     values = []
@@ -45,10 +64,13 @@ if __name__ == "__main__":
     # this is global namespace !!
     data = read_input()
 
-    myTree = Solution()
+    my_tree = Solution()
     tree_root = None
     for elem in data:
-        tree_root = myTree.insert(tree_root, elem)
-    tree_height = myTree.get_height(tree_root)
+        tree_root = my_tree.insert(tree_root, elem)
 
+    tree_height = my_tree.get_height(tree_root)
     print(tree_height)
+
+    tree_levels = my_tree.level_order(tree_root)
+    print(' '.join(map(str, (node.data for alevel in tree_levels for node in alevel))))
