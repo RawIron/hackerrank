@@ -33,12 +33,3 @@ getMany :: (Read a) => IO [a]
 getMany = do
     _ <- fmap read getLine :: IO Int
     fmap (map read . words) getLine
-
-getMultipleLines :: Int -> IO [String]
-getMultipleLines n
-    | n <= 0 = return []
-    | otherwise = do          
-        x <- getLine         
-        xs <- getMultipleLines (n-1)    
-        let ret = (x:xs)    
-        return ret
