@@ -1,7 +1,7 @@
 #include <iostream>
 #include <vector>
 
-using namespace std;	
+using namespace std;    
 
 
 class Node {
@@ -43,7 +43,7 @@ class BinaryTree {
         return walk(root, 0);
     }
 
-	vector<vector<Node*>> listBreadthFirst(Node* root) const {
+    vector<vector<Node*>> listBreadthFirst(Node* root) const {
         if (not root) {
             return vector<vector<Node*>>{};
         }
@@ -67,8 +67,8 @@ class BinaryTree {
         }
 
         return levels;
-	}
-    
+    }
+
     private:
     int walk(const Node* const node, const int height) const {
         int leftHeight{0}, rightHeight{0};
