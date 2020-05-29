@@ -20,3 +20,4 @@ target_link_libraries(run_tests boost_unit_test_framework)
 
 add_executable(forloop intro_forloop.cpp)
 add_executable(functions intro_functions.cpp)
+add_executable(pointer intro_pointer.cpp)
