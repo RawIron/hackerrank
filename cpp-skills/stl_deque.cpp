@@ -144,7 +144,7 @@ int main() {
         size_t n{}, k{};
         cin >> n >> k;
 
-        int arr[n]{};
+        int arr[n];
         for(size_t i{0}; i<n; ++i) {
               cin >> arr[i];
         }
