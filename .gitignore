@@ -22,9 +22,17 @@
 docs.json
 __dummy.html
 
+# ------
+# python
+*.pyo
+*.pyc
+__pycache__/
+
+# ---
+# vim
+*.swp
 
 # -----
 # cmake
 build/
-
 build_hs/
