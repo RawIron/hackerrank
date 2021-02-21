@@ -36,6 +36,7 @@ class builder():
                 #raise ValueError
             return current + new[n:]
         self.chain = chain_with_overlap
+        self.take = self.taken
         return self
 
     def copy_to(self, name):
@@ -49,7 +50,7 @@ class builder():
         return self
 
     def copy(self):
-        self.value += self.value
+        self.value = self.chain(self.value, self.value)
         return self
 
     def prm(self, n, m):
@@ -68,12 +69,14 @@ class builder():
         return self
 
     def _min_draw_given(self, letter, repeats=1):
+        self.taken = builder.alphabet.index(letter)
         return letter * repeats
 
     def _min_draw_identicals(self, repeats):
         if repeats == 1:
             return self._min_draw_uniques(1)
         drawn = builder.alphabet[self.take] * repeats
+        self.taken = builder.alphabet[self.take]
         if self.take == 0:
             self.take += 1
         else:
@@ -81,9 +84,10 @@ class builder():
         return ''.join(drawn)
 
     def _min_draw_uniques(self, n=1):
-        if self.take > 3:
+        if self.take > 2:
             self.take = 0
         drawn = builder.alphabet[self.take:self.take+n]
+        self.taken = self.take + n-1
         self.take += n
         return ''.join(drawn)
 
@@ -138,13 +142,16 @@ def run_tests():
 
 def test_string_create():
     tests = [
+        (builder().fill(1).concat().fill(1).concat().fill(1).concat().fill(1).value, 'abca'),
+        (builder().fill(1).concat().pr(2).concat().fill(1).value, 'abba'),
+        (builder().prm(1, 1).concat().fill(1).value, 'abac'),
         (builder().fill(2).value, 'ab'), 
         (builder().pr(4).value, 'aaaa'),
         (builder().pr(4).concat().fill(1).value, 'aaaab'),
         (builder().prm(2, 3).value, 'aabaaa'),
         (builder().fill(2).concat().pr(4).value, 'abcccc'),
         (builder().fill(1).concat().pr(2).concat().pr(4).concat().fill(1).value, 'abbaaaab'),
-        (builder().prm(1, 1).overlap(1).prm(1, 1).value, 'abaca'),
+        (builder().prm(1, 1).overlap(1).prm(1, 1).value, 'ababa'),
         (builder().prm(1, 1).overlap(1).copy().value, 'ababa'),
         ]
 
