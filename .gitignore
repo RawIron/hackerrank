@@ -26,6 +26,7 @@ __dummy.html
 # python
 *.pyo
 *.pyc
+.venv/
 __pycache__/
 
 # ---
