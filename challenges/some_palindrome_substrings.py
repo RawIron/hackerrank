@@ -49,8 +49,10 @@ class builder():
         self.value += self.registers[name]
         return self
 
-    def copy(self):
-        self.value = self.chain(self.value, self.value)
+    def copy(self, n=1):
+        self.temp = self.value
+        for _ in range(n):
+            self.value = self.chain(self.value, self.temp)
         return self
 
     def prm(self, n, m):
@@ -67,6 +69,9 @@ class builder():
     def fill(self, n):
         self.value = self.chain(self.value, self._min_draw_uniques(n))
         return self
+
+    def result(self):
+        return self.value
 
     def _min_draw_given(self, letter, repeats=1):
         self.taken = builder.alphabet.index(letter)
@@ -124,7 +129,7 @@ def run_tests():
              ('aabaaac', 13, builder().prm(2,3).concat().fill(1)),
              # prm overlaps
              ('cdbaabaaba', 15, builder().fill(3).concat().prm(2,2).overlap(2).prm(2,1)),
-             ('ababab', 10, builder().prm(1,1).overlap(1).prm(1,1).overlap(2).prm(1,1)),
+             ('ababab', 10, builder().fill(2).concat().copy(2)),
              ('caaabaa', 13, builder().fill(1).concat().prm(3,2)),
              ('abbcccca', 15, builder().fill(1).concat().pr(2).concat().pr(4).concat().fill(1)),
              ('cabbbabbc', 15, []),
@@ -146,6 +151,7 @@ def test_string_create():
         (builder().fill(1).concat().pr(2).concat().fill(1).value, 'abba'),
         (builder().prm(1, 1).concat().fill(1).value, 'abac'),
         (builder().fill(2).value, 'ab'), 
+        (builder().fill(1).concat().prm(1,1).concat().fill(1).result(), 'abcba'),
         (builder().pr(4).value, 'aaaa'),
         (builder().pr(4).concat().fill(1).value, 'aaaab'),
         (builder().prm(2, 3).value, 'aabaaa'),
@@ -153,6 +159,7 @@ def test_string_create():
         (builder().fill(1).concat().pr(2).concat().pr(4).concat().fill(1).value, 'abbaaaab'),
         (builder().prm(1, 1).overlap(1).prm(1, 1).value, 'ababa'),
         (builder().prm(1, 1).overlap(1).copy().value, 'ababa'),
+        (builder().pr(3).overlap(1).copy(2).value, 'aaaaaaa'),
         ]
 
     for result, expected in tests:
