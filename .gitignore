@@ -36,4 +36,4 @@ __pycache__/
 # -----
 # cmake
 build/
-build_hs/
+.buildhs/
