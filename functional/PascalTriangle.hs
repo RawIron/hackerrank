@@ -3,7 +3,7 @@ module Main where
 fact :: Int -> Int
 fact n = foldl (*) 1 [1..n]
 
-inomCoeff :: Int -> Int -> Int
+binomCoeff :: Int -> Int -> Int
 binomCoeff n r
     | n == 0 || r == 0 = 1
     | n - r >= r = (foldl (*) 1 [(n-r+1)..n]) `div` (fact r)
