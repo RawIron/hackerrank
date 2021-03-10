@@ -20,17 +20,15 @@ useMap subList superList =
 solve :: [Int] -> [Int] -> [Int]
 solve = useMap
 
-input :: IO ([Int], [Int])
+input :: IO [[Int]]
 input = do
-    _ <- getLine
-    lineA <- getLine
-    let listA = map read . words $ lineA
-    _ <- getLine
-    lineB <- getLine
-    let listB = map read . words $ lineB
-    return (listA, listB)
+    getContents >>=
+        return . map strToInts . keepOnlyList . lines
+    where
+        keepOnlyList = map snd . filter fst . (zip [False, True, False, True])
+        strToInts = map (read :: String -> Int) . words
 
 main :: IO ()
 main = do
-    (listA, listB) <- input
+    (listA : listB : _) <- input
     putStrLn . unwords . map show $ solve listA listB
