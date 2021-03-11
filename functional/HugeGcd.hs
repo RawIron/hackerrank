@@ -36,36 +36,49 @@
      + ((((19 * 3) * 1 + 19) * 5 + (19 * 3)) * 3 + ((19 * 3) * 1 + 19))
  -}
 
+
 module Main where
 
 import Data.List
+import Control.Monad (join)
+import Control.Arrow ((***))
 
-padShorter :: [Integer] -> [Integer] -> [[Integer]]
+both :: (a -> b) -> (a, a) -> (b, b)
+both = join (***)
+
+-- Converts a curried function to a function on a triple.
+uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
+uncurry3 f ~(a,b,c) = f a b c
+
+
+padShorter :: [Integer] -> [Integer] -> ([Integer], [Integer])
 padShorter x y
-    | length x > length y = [x, y ++ repeat 1]
-    | otherwise = [x ++ repeat 1, y]
+    | length x > length y = (x, y ++ repeat 1)
+    | otherwise = (x ++ repeat 1, y)
 
-shorten :: [Integer] -> [Integer] -> (Integer, [Integer], [Integer])
-shorten x y =
-    foldl gcdOnPairs (1, [], []) $ zip sortedX sortedY
+factorGcd :: [Integer] -> [Integer] -> (Integer, [Integer], [Integer])
+factorGcd xl yl =
+    foldl gcdOnPairs (1, [], []) $ zip xl yl
     where
-        (sortedX : sortedY : _) = padShorter (sort x) (sort y)
-        gcdOnPairs (gcdFactor, xs, ys) (a, b) =
-            (gcdPair * gcdFactor, (div a gcdPair) : xs, (div b gcdPair) : ys)
+        gcdOnPairs (gcdFactor, xs, ys) (x, y) =
+            (gcdPair * gcdFactor, (div x gcdPair) : xs, (div y gcdPair) : ys)
             where
-                gcdPair = gcd a b
+                gcdPair = gcd x y
+
+gcdWithFactor :: Integer -> [Integer] -> [Integer] -> Integer
+gcdWithFactor factors xs ys = factors * gcd (product xs) (product ys)
 
 useShorten :: [Integer] -> [Integer] -> Integer              
-useShorten a b =
-    gcdFactor * gcd (product smallA) (product smallB)
-    where
-        (gcdFactor, smallA, smallB) = shorten a b
+useShorten xs ys =
+    uncurry3 gcdWithFactor . uncurry factorGcd . uncurry padShorter . both sort $ (xs, ys)
+
 
 usePrelude :: [Integer] -> [Integer] -> Integer
-usePrelude a b = gcd (product a) (product b)
+usePrelude xs ys = gcd (product xs) (product ys)
 
 solve :: [Integer] -> [Integer] -> Integer
-solve a b = (useShorten a b) `mod` (10^9 + 7)
+solve xs ys = (useShorten xs ys) `mod` (10^9 + 7)
+
 
 input :: IO [[Integer]]
 input = do
