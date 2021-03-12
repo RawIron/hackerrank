@@ -1,11 +1,24 @@
 module Main where
 
-solve :: String -> [String]
-solve word =
-    tail . reverse $ foldl (\(w:ws) _ -> (rotate w) : w : ws) [word] [1..n]
+rotate :: String -> String
+rotate w = (tail w ++ [head w])
+
+recursive :: String -> [String]
+recursive word =
+    reverse $ go (length word) [rotate word]
     where
-        rotate w = (tail w ++ [head w])
+        go k (w : ws)
+            | k == 1 = w : ws
+            | otherwise = go (k-1) (rotate w : w : ws)
+
+folding :: String -> [String]
+folding word =
+    tail . reverse $ foldl (\(w:ws) _ -> (rotate w) : w : ws) [word] [1..n]
+    where  
         n = length word
+
+solve :: String -> [String]
+solve = recursive
 
 input :: IO [String]
 input = getContents >>= return . tail . lines
