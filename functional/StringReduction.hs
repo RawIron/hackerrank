@@ -2,9 +2,12 @@ module Main where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
- 
-solve :: String -> String
-solve word = go Set.empty [] word where
+
+-- | keep only the first occurrence of a char in a string
+-- >>> keepUniqueChars occurence
+-- ocuren
+keepUniqueChars :: String -> String
+keepUniqueChars word = go Set.empty [] word where
     go _ reduced [] = reverse reduced
     go seen reduced (w:ws)
         | (Set.member w seen) = go seen reduced ws
@@ -12,4 +15,4 @@ solve word = go Set.empty [] word where
 
 main :: IO ()
 main = do
-    getContents >>= putStrLn . solve
+    getContents >>= putStrLn . keepUniqueChars
