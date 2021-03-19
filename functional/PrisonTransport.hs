@@ -61,17 +61,18 @@ duplicatesP xs = fst $ foldl go (Set.empty, Set.empty) xs
         yWasSeen = Set.member y seen
 
 -- | calculate how many groups of each size
---
 -- 2-1-3, 4-5-6, 7-8
--- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8)] == [2,1]
+-- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8)] == [1,2]
 -- 2-1-3, 4-5-6, 7-8, 9-10-11-12
--- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == [0,1,2,1]
+-- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == [1,2,1,0]
 -- 9-10-11-12
--- > reportGroups [(9,10),(10,11),(11,12)] == [0,1,0,0]
+-- > reportGroups [(9,10),(10,11),(11,12)] == [0,0,1,0]
 -- 13-14-15-16-17
--- > reportGroups [(13,14),(14,15),(15,16),(16,17)] == [1,0,0,0]
+-- > reportGroups [(13,14),(14,15),(15,16),(16,17)] == [0,0,0,1]
+-- 18-19-20-21-22-23
+-- > reportGroups [(18,19),(19,20),(20,21),(21,22),(22,23)] == [0,0,0,0,1,0]
 reportGroups :: [(Int,Int)] -> [Int]
-reportGroups pairs = go [] pairs
+reportGroups pairs = reverse $ go [] pairs
     where
     go groups [] = groups
     go groups pairs = go groupsNext pairsNext
@@ -84,17 +85,28 @@ reportGroups pairs = go [] pairs
 -- | transport groups of inmates at lowest bus cost to a new location
 -- bus cost
 --  it makes it necessary to find all groups with their size
---  a^2 + b^2 < (a + b)^2 makes allocation of groups to buses trivial
---  put each group in a separate bus
+--  one group per bus
 --
--- number of groups and their sizes
--- groups of size > 1
--- [(3,1),(1,2),(2,4)] 3-1-2-4
-transportInmatesCost :: Int -> [(Int,Int)] -> [Int]
-transportInmatesCost n pairs = reportGroups pairs
+-- groups
+--  number of groups and their sizes
+--  3-1-2-4 == [(3,1),(1,2),(2,4)]
+--
+-- 2-1-3, 4-5-6, 7-8
+-- > transportInmatesCost 8 [(2,1),(1,3),(4,5),(5,6),(7,8)] == 6
+-- 18-19-20-21-22-23
+-- > transportInmatesCost 6 [(18,19),(19,20),(20,21),(21,22),(22,23)] == 3
+-- 2-1-3, 4-5-6, 7-8, 9-10-11-12
+-- > transportInmatesCost 12 [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == 8
+transportInmatesCost :: Int -> [(Int,Int)] -> Int
+transportInmatesCost n pairs = sum $ zipWith (*) (singleInmates : groups) busCost
+    where
+    groups = reportGroups pairs
+    chainedInmates = sum $ zipWith (*) groups [2..]
+    singleInmates = n - chainedInmates
+    busCost = map (ceiling . sqrt . fromIntegral) [1..]
 
 solve :: Int -> [(Int, Int)] -> Int
-solve n pairs = n - sum (transportInmatesCost n pairs)
+solve n pairs = transportInmatesCost n pairs
 
 
 -- | convert a list to a list of pairs
