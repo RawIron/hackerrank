@@ -3,14 +3,16 @@ module Main (
 ) where
 
 pileUp :: [Int] -> Bool
-pileUp plates = go (2^31,2^31) plates
+pileUp plates = go emptyStack plates
   where
-  go _ [] = True
+  emptyStack = (2^31,2^31)
   go stack plates
+    | noMorePlates = True
     | cannotStack = False
     | takeLeft = go putLeftOnStack removeLeft
     | takeRight = go putRightOnStack removeRight
     where
+    noMorePlates = null plates
     cannotStack = fst stack < snd stack
     takeLeft = (head plates) >= (last plates)
     putLeftOnStack = (snd stack, head plates)
@@ -26,4 +28,4 @@ printAnswer canBeSolved
 
 main :: IO ()
 main = do
-  printAnswer $ pileUp [7,5,9,6]
+  printAnswer $ pileUp [7,4,6]
