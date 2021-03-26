@@ -1,7 +1,7 @@
 module Main where
 
 import qualified Data.List as List
-import System.Environment
+import System.Environment.Blank
 import System.IO
 
 -- | k-times left rotate of a list
@@ -26,7 +26,7 @@ rotateLeft numbers rotations = leftOfHeadIndex ++ headIndexToEnd
 pairHeadTail :: [a] -> (a, [a])
 pairHeadTail (x:xs) = (x, xs)
 
--- | reverse function for pairs
+-- | reverse for pairs
 -- > reversePair (4,6) == (6,4)
 reversePair :: (a, b) -> (b, a)
 reversePair (x, xs) = (xs, x)
@@ -39,11 +39,8 @@ input = do
 
 main :: IO ()
 main = do
-    stdout <- getEnv "OUTPUT_PATH"
-    fptr <- openFile stdout WriteMode
-
-    input >>=
-        hPutStrLn fptr . List.intercalate " " . List.map show . uncurry rotateLeft
-
-    hFlush fptr
-    hClose fptr
+    outFilePath <- getEnvDefault "OUTPUT_PATH" "/dev/stdout"
+    withFile outFilePath WriteMode (\fptr -> do
+        input >>=
+            hPutStrLn fptr . List.intercalate " " . List.map show . uncurry rotateLeft
+        )
