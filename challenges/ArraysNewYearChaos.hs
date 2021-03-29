@@ -6,23 +6,24 @@ import qualified Data.Map as Map
 
 -- | replace each element with its rank
 -- > replaceWithRank [4,1,7] == [2,1,3]
-replaceWithRank :: [Int] -> [Int]
-replaceWithRank numbers = foldr go [] numbers
+replaceWithRank :: (Ord a) => [a] -> [Int]
+replaceWithRank xs = foldr go [] xs
     where
-    ranks = Map.fromList $ zip (List.sort numbers) [1..]
+    ranks = Map.fromList $ zip (List.sort xs) [1..]
     go x acc = case (Map.lookup x ranks) of
-        Just r -> r : acc
+        Just rank -> rank : acc
         Nothing -> acc
 
 -- | increment the first element of list by k
 -- > incr 2 [3,4,1] == [5,4,1]
-incr :: Int -> [Int] -> [Int]
+incr :: (Num a) => a -> [a] -> [a]
 incr _ [] = []
 incr k (x:xs) = (x+k:xs)
 
--- | 
--- > countMinBribes [3,1,2] == 2
--- > countMinBribes [3,2,1] == 3
+-- | count how many times numbers were swapped with their left neighbour
+-- > countMinBribes [3,1,2] == Just 2
+-- > countMinBribes [3,2,1] == Just 3
+-- > countMinBribes [1,2,5,3,7,8,6,4] == Just 7
 countMinBribes :: [Int] -> Maybe Int
 countMinBribes queue = countBribes (Just [], queue)
     where
@@ -33,6 +34,14 @@ countMinBribes queue = countBribes (Just [], queue)
         | (head <$> bribes) == Just 0 = sum <$> bribes
         | otherwise = countBribes $ countBribes' bribes queue
 
+-- | count the swaps which moved a number towards the head
+--   and create a new queue from items which stayed in position
+--   or moved towards the tail
+--
+-- for [1,2,5,3,7,8,6,4] countBribes calls:
+-- > countBribes' (Just []) [1,2,5,3,7,8,6,4] == (Just [6],[1,2,3,5,4])
+-- > countBribes' (Just [6]) [1,2,3,5,4] == (Just [1,6],[1,2,3,4])
+-- > countBribes' (Just [1,6]) [1,2,3,4] == (Just [0,1,6],[1,2,3,4])
 countBribes' :: Maybe [Int] -> [Int] -> (Maybe [Int], [Int])
 countBribes' bribes queue = (newBribes, newQueue)
     where
@@ -45,9 +54,9 @@ countBribes' bribes queue = (newBribes, newQueue)
         | after > before = ((incr (after - before)) <$> bribes, stayedOrBack)
         | otherwise = (bribes, after : stayedOrBack)
 
--- | 
+-- | hackerrank output
 showBribes :: Maybe Int -> String
-showBribes (Just b) = show b
+showBribes (Just bribes) = show bribes
 showBribes Nothing = "Too chaotic"
 
 input :: IO [Int]
