@@ -21,6 +21,19 @@ incr _ [] = []
 incr k (x:xs) = (x+k:xs)
 
 -- | count how many times numbers were swapped with their left neighbour
+--
+-- split the list in two groups:
+--  numbers which moved closer to the head
+--  numbers which stayed at their position or moved towards the tail
+--  for 3 2 4 1 the first group is 3 4 and the second is 2 1
+-- count the swaps with their left neighbours for the first group
+--  3 2 4 1
+--  1 2 3 4
+--  3 had (3-1) swaps and 4 had (4-3) swaps
+-- replace the numbers in the second list with their ranks and start again
+--  2 1 are already the ranks
+-- done when the swap count in the first group is 0
+--
 -- > countMinBribes [3,1,2] == Just 2
 -- > countMinBribes [3,2,1] == Just 3
 -- > countMinBribes [1,2,5,3,7,8,6,4] == Just 7
