@@ -11,9 +11,7 @@ def check_magazine(magazine, note):
 
 
 if __name__ == '__main__':
-    mn = input().split()
-    m = int(mn[0])
-    n = int(mn[1])
+    m, n = map(int, input().split())
 
     magazine = input().rstrip().split()
     note = input().rstrip().split()
