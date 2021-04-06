@@ -61,6 +61,30 @@ duplicatesP xs = fst $ foldl go (Set.empty, Set.empty) xs
         yWasSeen = Set.member y seen
 
 -- | calculate how many groups of each size
+-- 
+-- group of size 2 is a single pair (7,8)
+--  in case all groups are of size 2 [(7,8),(20,21),(22,23)]
+--  the list [7,8,20,21,22,23] is a set
+--
+-- group of size 3 are two pairs (2,1),(1,3)
+--  the list [2,1,1,3] has 1 as a duplicated value
+--  a connection of two pairs is a duplication of one value in the list
+--    2-1     1-3    4-5     5-6
+--      +- 1 -+        +- 5 -+
+--
+-- group of size 4 are 3 pairs (9,10),(10,11),(11,12)
+--  the list [9,10,10,11,11,12] has 10,11 as duplicated values
+--    9-10      10-11      11-12
+--       +- 10 -+   +- 11 -+
+--              10-11
+--
+-- group of size 6 are 5 pairs (18,19),(19,20),(20,21),(21,22),(22,23)
+--    18-19      19-20      20-21      21-22      22-23
+--        +- 19 -+   +- 20 -+   +- 21 -+   +- 22 -+
+--               19-20      20-21      21-22
+--                   +- 20 -+   +- 21 -+
+--                          20-21
+--
 -- 2-1-3, 4-5-6, 7-8
 -- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8)] == [1,2]
 -- 2-1-3, 4-5-6, 7-8, 9-10-11-12
@@ -84,12 +108,19 @@ reportGroups pairs = reverse $ go [] pairs
 
 -- | transport groups of inmates at lowest bus cost to a new location
 -- bus cost
---  it makes it necessary to find all groups with their size
+--  they make it necessary to find all groups with their size
 --  one group per bus
 --
 -- groups
---  number of groups and their sizes
---  3-1-2-4 == [(3,1),(1,2),(2,4)]
+--  have to determine the number of groups and their sizes
+--  for example one group of size 4:
+--      3-1-2-4 == [(3,1),(1,2),(2,4)]
+--  inmates can have one handcuff per arm
+--  all inmates have both of their arms
+--  inmates are chained in a line so they can get on the bus (no cycles)
+--  invalid inputs
+--      [(1,2),(1,3),(1,4)] more than 1 handcuff on one arm
+--      [(1,2),(2,1)] cycle, not chained in a line
 --
 -- 2-1-3, 4-5-6, 7-8
 -- > transportInmatesCost 8 [(2,1),(1,3),(4,5),(5,6),(7,8)] == 6
@@ -104,9 +135,6 @@ transportInmatesCost n pairs = sum $ zipWith (*) (singleInmates : groups) busCos
     chainedInmates = sum $ zipWith (*) groups [2..]
     singleInmates = n - chainedInmates
     busCost = map (ceiling . sqrt . fromIntegral) [1..]
-
-solve :: Int -> [(Int, Int)] -> Int
-solve n pairs = transportInmatesCost n pairs
 
 
 -- | convert a list to a list of pairs
@@ -155,4 +183,4 @@ input =
 
 main :: IO ()
 main = do
-    input >>= putStrLn . show . uncurry solve
+    input >>= putStrLn . show . uncurry transportInmatesCost
