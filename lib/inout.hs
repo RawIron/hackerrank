@@ -56,6 +56,10 @@
 
 module HackerrankInOut where
 
+import Control.Monad
+import System.Environment
+import System.IO
+
 -- reads N values of the same type from a single input line
 --
 -- input format
@@ -120,3 +124,76 @@ readTwoLinesOne = do
   fstValue <- readLn
   sndValue <- readLn
   return (fstValue, sndValue)
+
+{-
+ - test read functions
+ -}
+testReadTwoLinesOne :: IO ()
+testReadTwoLinesOne = do
+  pair <- readTwoLinesOne :: IO (Int,Int)
+  (putStrLn . show) $ fst pair
+  (putStrLn . show) $ snd pair
+
+testReadManyLinesOne :: IO ()
+testReadManyLinesOne = do
+  readManyLinesOne >>= mapM_ putStrLn
+
+
+-- | 
+write :: (Show a) => a -> IO ()
+write value = do
+    outputPath <- getEnv "OUTPUT_PATH"
+    fptr <- openFile outputPath WriteMode
+    hPutStr fptr $ show value
+    hFlush fptr
+    hClose fptr
+
+{-
+ - putting it all together
+ -}
+
+-- | solve a challenge
+solveV1 :: a -> [String]
+solveV1 _ = ["the", "solution"]
+
+solveV4 :: a -> a
+solveV4 x = x
+
+solveV2 :: [a] -> [String]
+solveV2 _ = ["the", "solution"]
+
+solveV3 :: a -> [a] -> [String]
+solveV3 _ _ = ["the", "solution"]
+
+
+-- | consume all lines with one value per line
+readNv1 :: (Read a) => IO [a]
+readNv1 = do
+  n <- readLn :: IO Int 
+  getContents >>= return . map read . lines
+
+-- | consume all values with each word is a value
+readNv2 :: (Read a) => IO [a]
+readNv2 = do
+  n <- readLn :: IO Int 
+  getContents >>= return . map read . words
+
+read1v1 :: (Read a) => IO a
+read1v1 = do
+  readLn
+
+-- | bring read and solve together
+mainv1 :: IO ()
+mainv1 = do
+  (read1v1 :: IO Int) >>= putStrLn . show . solveV4
+
+mainv2 :: IO ()
+mainv2 = do
+  (readNv1 :: IO [Int]) >>=
+    mapM_ putStrLn . (\(x:xs) -> solveV3 x xs)
+
+mainv3 :: IO ()
+mainv3 = do
+  t <- readLn :: IO Int
+  forM_ [1..t] $ \t_itr -> do
+    (read1v1 :: IO Double) >>= putStrLn . show . solveV4
