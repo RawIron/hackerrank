@@ -1,6 +1,7 @@
 module Main where
 
 import Data.Map as Map
+import Data.Maybe as Maybe
 import Data.List as List
 import System.Environment.Blank
 import System.IO
@@ -19,13 +20,11 @@ genIx n (x:xs) = n:(genIx (n+1) xs)
 --   => p(p(4)) == 1
 --
 -- > sequenceEquation [5,2,1,3,4] == [4,2,5,1,3]
-sequenceEquation :: [Int] -> [Int]
-sequenceEquation pX = List.map (lookup . lookup) $ genIx 1 pX
+sequenceEquation :: [Int] -> Maybe [Int]
+sequenceEquation pX = sequenceA $ List.map (\x -> return x >>= lookup >>= lookup) $ genIx 1 pX
   where
   inversePx = Map.fromList $ zip pX [1..]
-  lookup x = case (Map.lookup x inversePx) of
-              Just x -> x
-              Nothing -> 0
+  lookup x = Map.lookup x inversePx
 
 
 -- | parse string from stdin
@@ -40,5 +39,5 @@ main = do
     outFilePath <- getEnvDefault "OUTPUT_PATH" "/dev/stdout"
     withFile outFilePath WriteMode (\fptr -> do
         input >>=
-            mapM_ ((hPutStrLn fptr) . show) . sequenceEquation
+            mapM_ ((hPutStrLn fptr) . show) . Maybe.fromMaybe [] . sequenceEquation
         )
