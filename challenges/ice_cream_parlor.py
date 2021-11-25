@@ -1,5 +1,9 @@
 #!/bin/python3
 
+import os
+import sys
+
+
 def find_pair(cost, money):
     '''
     find the first pair of flavors which will take all of your money
@@ -10,7 +14,7 @@ def find_pair(cost, money):
     fast_search_cost = set(cost)
     for i, _ in enumerate(cost):
         if cost[i] >= money:
-            break
+            continue
         remaining = money - cost[i]
         if remaining in fast_search_cost:
             # cannot use index()
@@ -21,9 +25,11 @@ def find_pair(cost, money):
                 if cost[i+1+j] == remaining:
                     return (i, i+1+j)
 
+
 def what_flavors(cost, money):
     (first_flavor, second_flavor) = find_pair(cost, money)
-    print(f"{first_flavor+1} {second_flavor+1}")
+    return (first_flavor+1, second_flavor+1)
+
 
 def parse_input():
     money = int(input())
@@ -31,11 +37,21 @@ def parse_input():
     cost = list(map(int, input().rstrip().split()))
     return cost, money
 
+
 def main():
+    results = []
+
     t = int(input())
     for _ in range(t):
         cost, money = parse_input()
-        what_flavors(cost, money)
+        results.append(what_flavors(cost, money))
+
+    fileno = os.environ.get('OUTPUT_PATH', sys.stdout.fileno())
+    with open(fileno, 'w') as out:
+        for result in results:      
+            out.write(' '.join(map(str, result)))
+            out.write('\n')
+
 
 if __name__ == '__main__':
     main()
