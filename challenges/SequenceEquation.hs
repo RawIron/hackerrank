@@ -21,7 +21,7 @@ genIx n (x:xs) = n:(genIx (n+1) xs)
 --
 -- > sequenceEquation [5,2,1,3,4] == [4,2,5,1,3]
 sequenceEquation :: [Int] -> Maybe [Int]
-sequenceEquation pX = sequenceA $ List.map (\x -> return x >>= lookup >>= lookup) $ genIx 1 pX
+sequenceEquation pX = sequence $ List.map (\x -> return x >>= lookup >>= lookup) $ genIx 1 pX
   where
   inversePx = Map.fromList $ zip pX [1..]
   lookup x = Map.lookup x inversePx
