@@ -11,7 +11,7 @@ module Main where
 -- 1  2  3    4  5  6  7  8  9   10 11 12 .. 21   22 23 ..
 -- 3  2  1    6  5  4  3  2  1   12 11 10 ..  1   24 23 ..
 --
--- a new countdown starts at
+-- a new countdown starts at time
 --   3 * (2^n -1) + 1
 --
 -- in which countdown does time t fall?
@@ -24,13 +24,12 @@ module Main where
 -- > readCounterAt 15 == 7
 -- > readCounterAt 22 == 24
 readCounterAt :: Int -> Int
-readCounterAt t = counterValue
+readCounterAt t = countdownFrom - (t - timeAtCountdownStart)
   where
-  time_t = fromIntegral t
-  countdown = ceiling $ (logBase 2 ((time_t + 3)/3)) - 1
+  float_t = fromIntegral t
+  countdown = ceiling $ (logBase 2 ((float_t + 3)/3)) - 1
   countdownFrom = 3 * 2 ^ countdown 
   timeAtCountdownStart = ((3 * (2 ^ countdown - 1)) + 1)
-  counterValue = countdownFrom - (t - timeAtCountdownStart)
 
 -- | parse string from stdin
 input :: IO Int
