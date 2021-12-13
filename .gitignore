@@ -15,6 +15,7 @@
 *.lib
 
 # Executables
+a.out
 *.exe
 
 # DUB
