@@ -7,13 +7,15 @@ from collections import Counter
 def find_max_adjacent(numbers):
     '''
     find longest subset with any two elements are neighbors
-    for [3,4,4,5,5,1] the subsets are [3,4,4], [4,4,5,5], [5,5], [1]
-    picking [3,4,4,5,5,1] == 4
+    
+    for [5,3,4,5,1,4] the subsets are [1], [3,4,4], [4,4,5,5], [5,5]
+    >>> find_max_adjacent [5,3,4,5,1,4] == 4
     '''
     max_len = 0
     counts = Counter(numbers)
     for n, count in counts.items():
-        max_len = max(max_len, count + counts[n+1])
+        count_neighbor = counts[n+1]
+        max_len = max(max_len, count + count_neighbor)
     return max_len
 
 def parse_input():
