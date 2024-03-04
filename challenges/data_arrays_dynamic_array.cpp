@@ -2,19 +2,28 @@
 
 using namespace std;
 
-struct request {
-    int type;
+enum class qtype {
+    store = 1,
+    retrieve
+};
+
+ostream& operator << (ostream& os, const qtype& obj) {
+   os << static_cast<underlying_type<qtype>::type>(obj);
+   return os;
+}
+struct query {
+    qtype type;
     int x;
     int y;
 };
 
-void show(const request& r) {
-    cout << r.type << " " << r.x << " " << r.y << endl;
+void show(const query& q) {
+    cout << q.type << " " << q.x << " " << q.y << endl;
 }
 
-void show(const vector<request>& requests) {
-    for (auto& r : requests) {
-        show(r);
+void show(const vector<query>& queries) {
+    for (auto& q : queries) {
+        show(q);
     }
 }
 
@@ -25,19 +34,18 @@ void show(const T& items) {
     }
 }
 
-pair<int, vector<request>>
+pair<int, vector<query>>
 read_input() {
     size_t n{};
     size_t q{};
     cin >> n >> q;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
-    vector<request> requests{}; 
+    vector<query> requests(q); 
     int in_type{}, in_x{}, in_y{};
-
-    for (size_t i{0}; i < q; ++i) {
+    for (auto _ : views::iota(static_cast<size_t>(0), q)) {
         cin >> in_type >> in_x >> in_y;
-        const request r{in_type, in_x, in_y};
+        const query r{static_cast<qtype>(in_type), in_x, in_y};
         requests.push_back(r);
     }
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -51,31 +59,31 @@ read_input() {
         retrieve values from buckets
  */
 vector<int>
-hash_into_buckets(const int n, const vector<request>& queries) {
+hash_into_buckets(const int n, const vector<query>& queries) {
     vector<int> result{};
+
+    using enum qtype;
     vector<vector<int>> buckets(n);
     int mask{0};
-    
-    for (const auto& q: queries) {
+    for (auto& q: queries) {
         const int hash_value{(q.x ^ mask) % n};
-        vector<int>& bucket{buckets[hash_value]};
-        if (q.type == 1) {     
+        auto& bucket{buckets[hash_value]};
+        if (q.type == store) {     
             bucket.push_back(q.y);
         }
-        if (q.type == 2) {
+        if (q.type == retrieve) {
             mask = bucket[(q.y % bucket.size())];
             result.push_back(mask);
         }
     }
+
     return result;
 }
 
 int main() {
-    int n{};
-    vector<request> queries{};
-    tie(n, queries) = read_input();
+    auto [n, queries] = read_input();
 
-    show<vector<int>>(hash_into_buckets(n, queries));
+    show(hash_into_buckets(n, queries));
 
     return EXIT_SUCCESS;
 }
