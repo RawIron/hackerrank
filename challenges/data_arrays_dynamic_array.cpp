@@ -43,7 +43,7 @@ read_input() {
 
     vector<query> requests(q); 
     int in_type{}, in_x{}, in_y{};
-    for (auto _ : views::iota(static_cast<size_t>(0), q)) {
+    for (auto _ : views::iota(0ul, q)) {
         cin >> in_type >> in_x >> in_y;
         const query r{static_cast<qtype>(in_type), in_x, in_y};
         requests.push_back(r);
@@ -57,9 +57,11 @@ read_input() {
     run queries which
         store values into buckets
         retrieve values from buckets
+
+    caller assures retrieve only accesses previously stored values
  */
 vector<int>
-hash_into_buckets(const int n, const vector<query>& queries) {
+hide_in_buckets(const int n, const vector<query>& queries) {
     vector<int> result{};
 
     using enum qtype;
@@ -83,7 +85,7 @@ hash_into_buckets(const int n, const vector<query>& queries) {
 int main() {
     auto [n, queries] = read_input();
 
-    show(hash_into_buckets(n, queries));
+    show(hide_in_buckets(n, queries));
 
     return EXIT_SUCCESS;
 }
