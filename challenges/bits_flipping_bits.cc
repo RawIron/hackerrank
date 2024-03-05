@@ -2,27 +2,26 @@
 
 using namespace std;
 
-uint32_t flipBits(const uint32_t n) {
-    return ~n;
-}
-
-
-template<typename T>
-void printArray(const vector<T> items) {
-    ofstream fout(getenv("OUTPUT_PATH"));
-    for(auto item : items) {
-        fout << item << endl;
+template <typename T>
+void show(const T value) {
+    const char* const out_path{ getenv("OUTPUT_PATH") };
+    if (out_path != nullptr) {
+        ofstream fout(out_path);
+        fout << value << endl;
     }
-    fout.close();
+    else {
+        cout << value << endl;
+    }
 }
 
 template<typename T>
-vector<T> readFixedMany() {
+vector<T> read_many() {
     size_t n{};
     cin >> n;
 
+    const size_t zero{0};
     vector<T> in_vector(n);
-    for (size_t i{0}; i < n; ++i) {
+    for (auto i : views::iota(zero,n)) {
         T value{};
         cin >> value;
         in_vector[i] = value;
@@ -30,15 +29,17 @@ vector<T> readFixedMany() {
     return in_vector;
 }
 
-int main() {
-    vector<uint32_t> numbers{ readFixedMany<uint32_t>() };
 
-    vector<uint32_t> results{};
-    for (auto number : numbers) {
-        results.push_back( flipBits(number) );
+uint32_t flip_bits(const uint32_t n) {
+    return ~n;
+}
+
+int main() {
+    auto numbers{ read_many<uint32_t>() };
+
+    for (auto flipped : numbers | views::transform(flip_bits)) {
+        show(flipped);
     }
 
-    printArray(results);
-
-    return 0;
+    return EXIT_SUCCESS;
 }
