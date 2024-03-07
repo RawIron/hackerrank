@@ -1,4 +1,4 @@
-defmodule MiniMax do
+defmodule MiniMaxSum do
   def sum_take4(numbers) do
       import Enum, only: [take: 2, sum: 1]
 
@@ -21,7 +21,7 @@ end
 
 
 defmodule Main do
-  import MiniMax
+  import MiniMaxSum
   read_input()
   |> sum_take4()
   |> show()
