@@ -6,15 +6,14 @@ using namespace std;
 
 
 template<typename T>
-void printArray(const vector<T> items) {
-    for(auto item : items) {
+void show(const vector<T>& items) {
+    for(const auto& item : items) {
         cout << item << endl;
     }
 }
 
-
 template<typename T>
-vector<T> readFixedMany() {
+vector<T> read_many() {
     size_t n{};
     cin >> n;
 
@@ -29,11 +28,11 @@ vector<T> readFixedMany() {
 
 
 int main() {
-    vector<int> int_vector{ readFixedMany<int>() };
-    vector<string> string_vector{ readFixedMany<string>() };
+    const auto int_vector{ read_many<int>() };
+    const auto string_vector{ read_many<string>() };
 
-    printArray<int>(int_vector);
-    printArray<string>(string_vector);
+    show(int_vector);
+    show(string_vector);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
