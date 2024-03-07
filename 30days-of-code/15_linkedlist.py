@@ -1,17 +1,16 @@
 class Node:
     def __init__(self,data):
         self.data = data
-        self.next = None 
+        self.next = None
 
-class Solution: 
-    def display(self,head):
+class Solution:
+    def dump(self, head):
         current = head
         while current:
-            print(current.data,end=' ')
+            yield current.data
             current = current.next
-        print()
 
-    def insert(self,head,data):
+    def insert(self, head, data):
         newnode = Node(data)
         if head is None:
             self.tail = newnode
@@ -22,30 +21,34 @@ class Solution:
             return head
 
 
+def solve(data):
+    mylist = Solution()
+    head = None
+    for item in data:
+        head = mylist.insert(head, item)    
+
+    return mylist.dump(head)
+
+
 def generate_numbers():
     N = int(input())
     for _ in range(N):
         yield int(input())
 
+
 def read_numbers():
-    T = int(input())
+    N = int(input())
     numbers = []
-    for _ in range(T):
+    for _ in range(N):
         numbers.append(int(input()))
     return numbers
 
 
-def solve():
-    read_input = generate_numbers
-    data = read_input()
-
-    mylist = Solution()
-    head = None
-    for item in data:
-        head = mylist.insert(head,item)    
-
-    mylist.display(head); 	  
-
-
 if __name__ == "__main__":
-    solve()
+    read_input = generate_numbers
+
+    dumped = solve( read_input() )
+
+    for d in dumped:
+        print(d, end=' ')
+    print()
