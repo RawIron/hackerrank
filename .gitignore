@@ -30,6 +30,11 @@ __dummy.html
 .venv/
 __pycache__/
 
+# ------
+# vscode
+*.vscode
+
+
 # ---
 # vim
 *.swp
