@@ -1,47 +1,70 @@
 defmodule CompareTheTriplets do
-  @doc """
-  practice Elixir recursion and the pipe operator
-  """
+@moduledoc """
+practice Elixir recursion and the pipe operator
+this code is inelegant
+"""
 
-  defmodule ReadLines do
-      def into_list(), do: _read(IO.read(:stdio, :line), [])
+  defmodule ReadWrite do
+    @doc """
+    into_list :: IO [String]
+    """
+    def into_list(), do: _read(IO.read(:stdio, :line), [])
 
-      defp _read(:eof, lines), do: lines
-      defp _read({:error, _reason}, _lines), do: []   # TODO do not be silent
-      defp _read(data, lines), do: _read(IO.read(:stdio, :line), [data|lines])
-  end
+    defp _read(:eof, lines), do: lines
+    defp _read({:error, _reason}, _lines), do: []
+    defp _read(data, lines), do: _read(IO.read(:stdio, :line), [data|lines])
 
+    @doc """
+    to_int_words :: [String] -> [[Int]]
 
-  defmodule Sentences do
-      def to_int_words(lines) do
-          lines
-          |> _words([])
-          |> _to_int
-      end
+    to_int_words(["2  7", "8   4"]) == [[2,7], [8,4]]
+    """
+    def to_int_words(lines) when is_list(lines) do
+        lines
+        |> _words([])
+        |> _to_int
+    end
 
-      defp _words([], lists), do: lists
-      defp _words([head|tail], lists), do: _words(tail, [String.split(head)|lists])
+    defp _words([], lists), do: lists
+    defp _words([head|tail], lists), do: _words(tail, [String.split(head)|lists])
 
-      defp _to_int([a,b|[]]), do: [Enum.map(a, &String.to_integer(&1)), Enum.map(b, &String.to_integer(&1))]
+    defp _to_int([a,b|_tail]), do: [Enum.map(a, &String.to_integer(&1)), Enum.map(b, &String.to_integer(&1))]
+
+    @doc """
+    show({3,4}) -> 3 4
+    """
+    def show(result) when is_tuple(result) do
+        :io.format("~B ~B", Tuple.to_list(result))
+    end
   end
 
 
   defmodule Scores do
-      def rate(players), do: _rate(players, 0, 0)
+    @doc """
+    count the wins of each of the two players
+    by comparing their scores for every game in the list
 
-      defp _rate([], a, b), do: {a, b}
-      defp _rate([{from_a, from_b} | tail], a, b) when from_a > from_b, do: _rate(tail, a+1, b)
-      defp _rate([{from_a, from_b} | tail], a, b) when from_b > from_a, do: _rate(tail, a, b+1)
-      defp _rate([{from_a, from_b} | tail], a, b) when from_b == from_a, do: _rate(tail, a, b)
+    rate :: [(Int, Int)] -> (Int, Int)
+
+    rate([{12,3}, {11,11}, {4,7}]) == {1,1}
+    """
+    def rate(games), do: _rate(games, 0, 0)
+
+    defp _rate([], wins_a, wins_b), do: {wins_a, wins_b}
+    defp _rate([{player_a, player_b} | tail], wins_a, wins_b) when player_a > player_b, do: _rate(tail, wins_a + 1, wins_b)
+    defp _rate([{player_a, player_b} | tail], wins_a, wins_b) when player_b > player_a, do: _rate(tail, wins_a, wins_b + 1)
+    defp _rate([{player_a, player_b} | tail], wins_a, wins_b) when player_b == player_a, do: _rate(tail, wins_a, wins_b)
   end
+end
 
 
-  defmodule Solution do
-      result = ReadLines.into_list
-          |> Sentences.to_int_words
-          |> List.zip
-          |> Scores.rate
-      :io.format("~B ~B", Tuple.to_list(result))
-  end
+defmodule Solution do
+    alias CompareTheTriplets.ReadWrite
+    alias CompareTheTriplets.Scores
 
+    ReadWrite.into_list
+    |> ReadWrite.to_int_words
+    |> List.zip
+    |> Scores.rate
+    |> ReadWrite.show
 end
