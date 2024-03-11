@@ -1,40 +1,58 @@
 defmodule AppleAndOrange do
+    @moduledoc """
+    Fruits fall from a tree
+    and land some distance away from the tree.
 
-  defmodule Data do
-      def next_line() do
-          IO.read(:stdio, :line) |> String.split() |> Enum.map(&String.to_integer(&1))
-      end
-  end
+    There are two trees and one house in a garden.
+    The trees are on location _a_ and _o_
+    and the house stretches from _hl to _hh.
 
-  defmodule AppleOrange do
+    1 -------- + -------- + -------- 30
+         ^       <======>      ^
+         a      ha     ho      o
 
-      def count_hits([apples, oranges], [s, t], [a, b]) do
-          [_count(apples, [s,t], a), _count(oranges, [s,t], b)]
-      end
+    1<= a < ha < ho < o
+    """
 
-      defp _count(fruits, [s, t], tree) do
-          [left, right] = [s-tree, t-tree]
-          is_hit = fn(x) -> left <= x and x <= right end
+    defmodule Data do
+        def next_line() do
+            IO.read(:stdio, :line)
+            |> String.split()
+            |> Enum.map(&String.to_integer(&1))
+        end
 
-          fruits
-          |> Enum.filter(is_hit)
-          |> Enum.count()
-      end
+        def show(value) when is_integer(value) do
+            :io.fwrite("~B~n", [value])
+        end
+    end
 
-  end
+    @doc """
+    how many of the fruits fell on the house?
 
-  defmodule Solution do
+    count_hits([[2,3,-4], 4], [7,10]) == 1
+    """
+    def count_hits([distances, tree], [ha, ho]) do
+        [left, right] = [ha-tree, ho-tree]
+        is_hit = fn(d) -> left <= d and d <= right end
 
-      house = Data.next_line()
-      trees = Data.next_line()
-      [m, n] = Data.next_line()
-      apples = Data.next_line()
-      oranges = Data.next_line()
+        distances
+        |> Enum.filter(is_hit)
+        |> Enum.count()
+    end
 
-      [apple_count, orange_count] = AppleOrange.count_hits([apples, oranges], house, trees)
+end
 
-      :io.format("~B~n", [apple_count])
-      :io.format("~B", [orange_count])
-  end
 
+defmodule Solution do
+    alias AppleAndOrange.Data
+
+    house = Data.next_line()
+    [apple_tree, orange_tree] = Data.next_line()
+    [_m, _n] = Data.next_line()
+    apples = Data.next_line()
+    oranges = Data.next_line()
+
+    [[apples, apple_tree], [oranges, orange_tree]]
+    |> Enum.map(&AppleAndOrange.count_hits(&1, house))
+    |> Enum.map(&Data.show(&1))
 end
