@@ -3,6 +3,7 @@ module Main where
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
+import Data.Functor
 import System.Environment.Blank
 import System.IO
 
@@ -13,8 +14,8 @@ import System.IO
 --  all frequencies are identical
 -- two groups:
 --  one group must have count 1
---    frequency-1 of the group with count 1 == frequency of the other group
 --    frequency is 1 of the group with count 1
+--    frequency-1 of the group with count 1 == frequency of the other group
 -- more than two groups:
 --  word is invalid
 --
@@ -24,10 +25,10 @@ import System.IO
 -- > isValid "aacbcbc" == True
 isValid :: String -> Bool
 isValid word = case (groupFreq $ frequencies word) of
-    (xs:[]) -> True
-    ([1]:xs:[]) -> True
-    (xs:(x:[]):[]) -> (head xs) == (x-1)
-    otherwise -> False
+    [xs] -> True
+    [[1],xs] -> True
+    [xs, [x]] -> (head xs) == (x-1)
+    _ -> False
 
 -- | groups of frequencies sorted ascending
 -- > groupFreq $ frequencies "aabbc" == [[1],[2,2]]
@@ -49,7 +50,7 @@ showYesNo isTrue
 -- | parse string from stdin
 input :: IO String
 input = do
-    getContents >>= return . head . words
+    getContents <&> (head . words)
 
 main :: IO ()
 main = do
