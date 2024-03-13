@@ -22,14 +22,14 @@ def parse_input():
     _ = int(input().strip())
     return map(int, input().rstrip().split())
 
-def write_answer(result):
+def show(result):
     fileno = os.environ.get('OUTPUT_PATH', sys.stdout.fileno())
     with open(fileno, 'w') as out:
         out.write(str(result) + '\n')
 
 def main():
     numbers = parse_input()
-    write_answer(find_max_adjacent(numbers))
+    show(find_max_adjacent(numbers))
 
 if __name__ == '__main__':
     main()
