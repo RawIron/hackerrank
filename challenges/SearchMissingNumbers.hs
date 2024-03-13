@@ -16,16 +16,20 @@ frequencies :: [Int] -> Map Int Int
 frequencies numbers = Map.fromListWith (+) $ zip numbers (repeat 1)
 
 -- | elements in b which are not in a
+-- _not in_ defined as:
+--    the frequency of an element is not the same in both lists
+-- because of the above definition of _not in_
+-- the Set datatype is not used
 -- 
 -- count elements in b
 -- read element from a and decrement the count in b
--- elements in b with a count > 0 are not in a
+-- elements in b with count > 0 are not in a
 --
 -- > notIn [3,3] [3] = [3]
 -- > notIn [2,3] [3] = [2]
 -- > notIn [2,3] [3,3] = [2]
 notIn :: [Int] -> [Int] -> [Int]
-notIn b a = Map.keys . Map.filter (> 0) $ List.foldl (flip freqDecr) (frequencies b) a
+notIn b a = Map.keys . Map.filter (> 0) $ List.foldl' (flip freqDecr) (frequencies b) a
 
 -- | parse input string from stdin
 input :: IO ([Int], [Int])
