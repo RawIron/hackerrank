@@ -5,16 +5,24 @@ import sys
 import random
 
 
-class builder():
-    """ Palindromes
-      prm(ch,n,n) = Type 1: repeats of same character with middle (left == right)
-      prm(ch,n,m) = Type 1: repeats of same character with middle (left < right)
-      prm(ch,n,m) = Type 1: repeats of same character with middle (left > right)
-      pr(ch,n)    = Type 2: repeats of same character
-      fill(ch,n)  = Filler
+#
+#   a digression on
+#   building strings containing palindromes
+#   
+#   this needs plenty of polishing
+#
 
-      prm(a,n,m) = pr(a,n) + fill(b,1) + pr(a,m)
-    """
+class builder():
+    '''
+    Palindromes
+    prm(ch,n,n) = Type 1: repeats of same character with middle (left == right)
+    prm(ch,n,m) = Type 1: repeats of same character with middle (left < right)
+    prm(ch,n,m) = Type 1: repeats of same character with middle (left > right)
+    pr(ch,n)    = Type 2: repeats of same character
+    fill(ch,n)  = Filler
+
+    prm(a,n,m) = pr(a,n) + fill(b,1) + pr(a,m)
+    '''
     alphabet = 'abcdefghijklmnopqrstuvwxyz'
 
     def __init__(self):
@@ -104,6 +112,28 @@ class builder():
         return ''.join(drawn)
 
 
+def test_string_create():
+    tests = [
+        (builder().fill(1).concat().fill(1).concat().fill(1).concat().fill(1).value, 'abca'),
+        (builder().fill(1).concat().pr(2).concat().fill(1).value, 'abba'),
+        (builder().prm(1, 1).concat().fill(1).value, 'abac'),
+        (builder().fill(2).value, 'ab'), 
+        (builder().fill(1).concat().prm(1,1).concat().fill(1).result(), 'abcba'),
+        (builder().pr(4).value, 'aaaa'),
+        (builder().pr(4).concat().fill(1).value, 'aaaab'),
+        (builder().prm(2, 3).value, 'aabaaa'),
+        (builder().fill(2).concat().pr(4).value, 'abcccc'),
+        (builder().fill(1).concat().pr(2).concat().pr(4).concat().fill(1).value, 'abbaaaab'),
+        (builder().prm(1, 1).overlap(1).prm(1, 1).value, 'ababa'),
+        (builder().prm(1, 1).overlap(1).copy().value, 'ababa'),
+        (builder().pr(3).overlap(1).copy(2).value, 'aaaaaaa'),
+        ]
+
+    for result, expected in tests:
+        if result != expected:
+            print(f'test failed: expected {expected} found {result}')
+
+
 def run_tests():
     tests = [('cab', 3, builder().fill(3)),
              ('cabcabca', 8, builder().fill(8)),
@@ -145,52 +175,58 @@ def run_tests():
             print(f'test for {len(word)},{word} failed: expected {expected} found {result}')
 
 
-def test_string_create():
-    tests = [
-        (builder().fill(1).concat().fill(1).concat().fill(1).concat().fill(1).value, 'abca'),
-        (builder().fill(1).concat().pr(2).concat().fill(1).value, 'abba'),
-        (builder().prm(1, 1).concat().fill(1).value, 'abac'),
-        (builder().fill(2).value, 'ab'), 
-        (builder().fill(1).concat().prm(1,1).concat().fill(1).result(), 'abcba'),
-        (builder().pr(4).value, 'aaaa'),
-        (builder().pr(4).concat().fill(1).value, 'aaaab'),
-        (builder().prm(2, 3).value, 'aabaaa'),
-        (builder().fill(2).concat().pr(4).value, 'abcccc'),
-        (builder().fill(1).concat().pr(2).concat().pr(4).concat().fill(1).value, 'abbaaaab'),
-        (builder().prm(1, 1).overlap(1).prm(1, 1).value, 'ababa'),
-        (builder().prm(1, 1).overlap(1).copy().value, 'ababa'),
-        (builder().pr(3).overlap(1).copy(2).value, 'aaaaaaa'),
-        ]
-
-    for result, expected in tests:
-        if result != expected:
-            print(f'test failed: expected {expected} found {result}')
-
+#
+#   the solution to the challenge
+#
+#
 
 def count_some_palindromes(n, word):
-    """ list all substrings which are
-        palindromes repeating the same character like 'aaa' and not 'abcba'
-        palindromes of uneven length like 'aacaa' and not 'abba'
+    '''
+    count all substrings which are a palindrome
 
-      it is sufficient to look at the last 3 letters read from the string
-      (l0, l1, l2)
-      l0 = repeat_letter
-      l1 = last_letter
-      l2 = current_letter
-    """
+    a palindrome can only be one of two things:
+    1. repeating the same letter like 'aaa'
+    2. repeating the same letter on both sides
+       of a single separating letter, like 'aacaa'
+
+    it is not required to
+    3. list the palindrome itself
+    4. list the length of the palindrome
+
+    == same letter repeated ==
+
+    compare the last 2 letters and update the length of the repeat
+
+    == uneven length palindromes ==
+    
+    a letter sequence like
+        aaaabaaac -> [aba, aabaa, aaabaaa]
+    the counter should be increased by 3
+    
+    increase the count by 1 for
+        abcdefghgfedcba <=> ghg
+    because of restriction 2
+    note: [fghgf, efghgfe, ..] are __not__ counted
+
+    it is sufficient to look at the last 3 letters read from the string
+    (repeat_letter, last_letter, letter)
+    '''
     count = n
-    last_letter = ''
-    repeat_letter = ''
-    left_repeat = 0
-    right_repeat = 1
     has_middle = False
+    left_repeat = 0     # is never incremented
+                        # only holds a copy of the last right_repeat
+    right_repeat = 1    # incremented when a letter is repeated
+
     DEBUG = False
+    repeat_letter = ''
+    last_letter = ''
 
     if DEBUG: print(count)
     for ix, letter in enumerate(word):
         if DEBUG: print(word[:ix+1])
         if letter != last_letter:
             if right_repeat > 1:
+                # aab
                 count += (right_repeat * (right_repeat-1)) // 2
                 if DEBUG: print(count)
                 if has_middle:
@@ -201,17 +237,23 @@ def count_some_palindromes(n, word):
                 right_repeat = 1
             else:
                 if letter == repeat_letter:
+                    # aba
                     count += 1
                     if has_middle:
+                        # bbaba
+                        left_repeat = 0
                         has_middle = False
                     else:
                         if left_repeat > 1:
+                            # aaaba
                             has_middle = True
                     if DEBUG: print(count)
                 else:
+                    # abc
                     left_repeat = 0
                     has_middle = False
         else:
+            # baa
             right_repeat += 1
         repeat_letter = last_letter
         last_letter = letter
@@ -223,19 +265,20 @@ def count_some_palindromes(n, word):
     return count
 
 
-def solve():
+def show(result):
     fileno = os.environ.get('OUTPUT_PATH', sys.stdout.fileno())
-    fptr = open(fileno, 'w')
+    with open(fileno, 'w') as out:
+        out.write(str(result) + '\n')
 
+
+def solve():
     n = int(input())
     s = input()
     result = count_some_palindromes(n, s)
-
-    fptr.write(str(result) + '\n')
-    fptr.close()
+    show(result)
 
 
 if __name__ == '__main__':
-    # run_tests()
-    #solve()
-    test_string_create()
+    run_tests()
+    solve()
+    #test_string_create()
