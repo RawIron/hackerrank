@@ -199,22 +199,21 @@ def count_some_palindromes(n, word):
 
     == uneven length palindromes ==
     
-    a letter sequence like
+    for a letter sequence like
         aaaabaaac -> [aba, aabaa, aaabaaa]
     the counter should be increased by 3
     
-    increase the count by 1 for
+    because of restriction 2 increase the count by 1 for
         abcdefghgfedcba <=> ghg
-    because of restriction 2
-    note: [fghgf, efghgfe, ..] are __not__ counted
+    reminder: [fghgf, efghgfe, ..] are __not__ counted
 
     it is sufficient to look at the last 3 letters read from the string
     (repeat_letter, last_letter, letter)
     '''
     count = n
-    has_middle = False
-    left_repeat = 0     # is never incremented
-                        # only holds a copy of the last right_repeat
+    has_middle = False  # true: there is a left repeat and the right repeat is
+                        #       in progress 
+    left_repeat = 0     # holds an immutable copy of the last right_repeat                        
     right_repeat = 1    # incremented when a letter is repeated
 
     DEBUG = False
