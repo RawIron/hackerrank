@@ -2,111 +2,114 @@ module Main where
 
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.List as List
+import Data.Functor ((<&>))
 import Control.Arrow ((&&&))
+import Control.Monad(foldM)
 
--- | extract all elements from set which are not in any pair
--- > filterNotInAnyPair (Set.fromList [1,2,7]) [(1,2),(1,3),(2,4)] == Set.fromList [7]
-filterNotInAnyPair :: (Ord a) => Set a -> [(a,a)] -> Set a
-filterNotInAnyPair members pairs = members Set.\\ seenInPairs
-    where
-    seenInPairs = foldl go Set.empty pairs
+
+-- | extract the set where x is a member of
+--
+memberInNaive :: (Ord a) => a -> Set(Set a) -> Set a
+memberInNaive x groups =
+        if Set.null inGroup then Set.empty
+        else Set.elemAt 0 inGroup
         where
-        go seen (x,y)
-            | xyWereSeen = ((Set.insert y . Set.insert x) $ seen)
-            | xWasSeen = (Set.insert x seen)
-            | yWasSeen = (Set.insert y seen)
-            | otherwise = seen
-            where
-            xyWereSeen = (Set.member x members) && (Set.member y members)
-            xWasSeen = Set.member x members
-            yWasSeen = Set.member y members
+            inGroup = Set.filter (Set.member x) groups
 
--- | extract all pairs which have both of their elements in the Set
--- > filterBothAreMember (Set.fromList [1,2]) [(1,2),(1,3),(2,4)] == [(1,2)]
-filterBothAreMember :: (Ord a) => Set a -> [(a,a)] -> [(a,a)]
-filterBothAreMember members pairs = filter (go members) pairs
-    where
-    go members (x,y) = (Set.member x members) && (Set.member y members)
 
--- | extract all pairs which have none of their elements in the Set
--- > filterNoneIsMember (Set.fromList [1,2]) [(1,2),(1,3),(4,5)] == [(4,5)]
-filterNoneIsMember :: (Ord a) => Set a -> [(a,a)] -> [(a,a)]
-filterNoneIsMember members pairs = filter (go members) pairs
-    where
-    go members (x,y) = not ((Set.member x members) || (Set.member y members))
+exampleMemberInNaive :: Bool
+exampleMemberInNaive =
+    memberInNaive 4 (Set.fromList [Set.fromList [1,2], Set.fromList [3,4,5]]) == Set.fromList [3,4,5]
 
--- | extract all elements which occur more than once
--- > duplicates [1,2,1,2,2,3,4] == Set.fromList [1,2]
-duplicates :: (Ord a) => [a] -> Set a
-duplicates xs = fst $ foldl go (Set.empty, Set.empty) xs
-    where
-    go (repeated, seen) x
-        | Set.member x seen = (Set.insert x repeated, seen)
-        | otherwise = (repeated, Set.insert x seen)
 
--- | extract all elements which occur more than once
--- > duplicatesP [(1,2),(1,4),(2,3),(4,3)] == Set.fromList [1,2,3,4]
--- > duplicatesP [(9,10),(10,11),(11,12)] == Set.fromList [10,11]
-duplicatesP :: (Ord a) => [(a,a)] -> Set a
-duplicatesP xs = fst $ foldl go (Set.empty, Set.empty) xs
-    where
-    go (repeated, seen) (x,y)
-        | xyWereSeen = ((Set.insert y . Set.insert x) $ repeated, seen)
-        | xWasSeen = (Set.insert x repeated, Set.insert y seen)
-        | yWasSeen = (Set.insert y repeated, Set.insert x seen)
-        | otherwise = (repeated, (Set.insert x . Set.insert y) $ seen)
+-- | extract the set where x is a member of
+--
+memberIn :: (Ord a) => a -> Set(Set a) -> Set a
+memberIn x = either id id . foldM go Set.empty
         where
-        xyWereSeen = (Set.member x seen) && (Set.member y seen)
-        xWasSeen = Set.member x seen
-        yWasSeen = Set.member y seen
+            go xMember group =
+                if Set.member x group
+                then Left group         -- Left signals early termination
+                else Right xMember
+
+
+-- | extract the sets where x,y is a member of
+--
+-- search for two in one iteration
+-- break out of @foldM@ as soon as both sets were found
+memberIn2 :: (Ord a) => (a,a) -> Set(Set a) -> (Set a, Set a)
+memberIn2 (x,y) = either id id . foldM go (Set.empty, Set.empty)
+        where
+            go (xMember, yMember) group =
+                case (Set.null xMember, Set.null yMember) of
+                (False, False) -> Left (xMember, yMember)       -- Left signals early termination
+                _              -> Right (xIn, yIn)              -- keep iterating
+                where
+                    xIn = if Set.member x group then group else xMember
+                    yIn = if Set.member y group then group else yMember
+
+
+testMemberIn2 :: [Bool]
+testMemberIn2 =
+    zipWith (==) (map (uncurry memberIn2 . fst) tests) (map snd tests)
+    where 
+    tests = [
+        (((4,7), Set.fromList [Set.fromList [1,2], Set.fromList [3,4,5]]), (Set.fromList [3,4,5], Set.empty)),
+        (((6,1), Set.fromList [Set.fromList [1,2], Set.fromList [3,4,5]]), (Set.empty, Set.fromList [1,2]))
+        ]
+
 
 -- | calculate how many groups of each size
--- 
--- group of size 2 is a single pair (7,8)
---  in case all groups are of size 2 [(7,8),(20,21),(22,23)]
---  the list [7,8,20,21,22,23] is a set
---
--- group of size 3 are two pairs (2,1),(1,3)
---  the list [2,1,1,3] has 1 as a duplicated value
---  a connection of two pairs is a duplication of one value in the list
---    2-1     1-3    4-5     5-6
---      +- 1 -+        +- 5 -+
---
--- group of size 4 are 3 pairs (9,10),(10,11),(11,12)
---  the list [9,10,10,11,11,12] has 10,11 as duplicated values
---    9-10      10-11      11-12
---       +- 10 -+   +- 11 -+
---              10-11
---
--- group of size 6 are 5 pairs (18,19),(19,20),(20,21),(21,22),(22,23)
---    18-19      19-20      20-21      21-22      22-23
---        +- 19 -+   +- 20 -+   +- 21 -+   +- 22 -+
---               19-20      20-21      21-22
---                   +- 20 -+   +- 21 -+
---                          20-21
 --
 -- 2-1-3, 4-5-6, 7-8
--- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8)] == [1,2]
+-- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8)] == [3,3,2]
 -- 2-1-3, 4-5-6, 7-8, 9-10-11-12
--- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == [1,2,1,0]
+-- > reportGroups [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == [3,3,2,4]
 -- 9-10-11-12
--- > reportGroups [(9,10),(10,11),(11,12)] == [0,0,1,0]
+-- > reportGroups [(9,10),(10,11),(11,12)] == [4]
 -- 13-14-15-16-17
--- > reportGroups [(13,14),(14,15),(15,16),(16,17)] == [0,0,0,1]
+-- > reportGroups [(13,14),(14,15),(15,16),(16,17)] == [5]
 -- 18-19-20-21-22-23
--- > reportGroups [(18,19),(19,20),(20,21),(21,22),(22,23)] == [0,0,0,0,1,0]
+-- > reportGroups [(18,19),(19,20),(20,21),(21,22),(22,23)] == [6]
 reportGroups :: [(Int,Int)] -> [Int]
-reportGroups pairs = reverse $ go [] pairs
+reportGroups = List.map Set.size . Set.toList . snd . List.foldl' go (Set.empty, Set.empty)
     where
-    go groups [] = groups
-    go groups pairs = go groupsNext pairsNext
+    go (seenBefore, groups) (x,y) =
+        case (Set.member x seenBefore, Set.member y seenBefore) of
+        (False, False) -> (rememberXY, addNewGroup)
+        (False, True) -> (rememberX, insertXtoY)
+        (True, False) -> (rememberY, insertYtoX)
+        (True, True) -> if xyMemberIn == yxMemberIn then (seenBefore, groups)
+                        else (seenBefore, unionXY)
         where
-        repeats = duplicatesP pairs
-        groupsP = length (filterNoneIsMember repeats pairs) : groups
-        pairsNext = filterBothAreMember repeats pairs
-        groupsNext = Set.size (filterNotInAnyPair repeats pairsNext) : groupsP
+            rememberXY = Set.insert x . Set.insert y $ seenBefore
+            rememberX = Set.insert x seenBefore
+            rememberY = Set.insert y seenBefore
+            addNewGroup = Set.insert (Set.fromList [x,y]) groups    
+            insertYtoX = Set.insert (Set.insert y xMemberIn) . Set.delete xMemberIn $ groups
+            insertXtoY = Set.insert (Set.insert x yMemberIn) . Set.delete yMemberIn $ groups
+            unionXY = Set.insert (Set.union xyMemberIn yxMemberIn) . Set.delete yxMemberIn . Set.delete xyMemberIn $ groups
+            xMemberIn = memberIn x groups
+            yMemberIn = memberIn y groups
+            (xyMemberIn, yxMemberIn) = memberIn2 (x,y) groups
+
+
+testReportGroups :: [Bool]
+testReportGroups =
+    zipWith (==) (map (List.sort . reportGroups . fst) tests) (map snd tests)
+    where 
+    tests = [
+        ([(1,2)], [2]),
+        ([(1,2),(3,4)], [2,2]),
+        ([(2,1),(1,3)], [3]),
+        ([(2,1),(1,3),(4,5),(5,6)], [3,3]),
+        ([(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)], [2,3,3,4])
+        ]
+
 
 -- | transport groups of inmates at lowest bus cost to a new location
+--
 -- bus cost
 --  they make it necessary to find all groups with their size
 --  one group per bus
@@ -115,12 +118,6 @@ reportGroups pairs = reverse $ go [] pairs
 --  have to determine the number of groups and their sizes
 --  for example one group of size 4:
 --      3-1-2-4 == [(3,1),(1,2),(2,4)]
---  inmates can have one handcuff per arm
---  all inmates have both of their arms
---  inmates are chained in a line so they can get on the bus (no cycles)
---  invalid inputs
---      [(1,2),(1,3),(1,4)] more than 1 handcuff on one arm
---      [(1,2),(2,1)] cycle, not chained in a line
 --
 -- 2-1-3, 4-5-6, 7-8
 -- > transportInmatesCost 8 [(2,1),(1,3),(4,5),(5,6),(7,8)] == 6
@@ -128,59 +125,37 @@ reportGroups pairs = reverse $ go [] pairs
 -- > transportInmatesCost 6 [(18,19),(19,20),(20,21),(21,22),(22,23)] == 3
 -- 2-1-3, 4-5-6, 7-8, 9-10-11-12
 -- > transportInmatesCost 12 [(2,1),(1,3),(4,5),(5,6),(7,8),(9,10),(10,11),(11,12)] == 8
+--
+-- 1-5-6-8, 7-3
+-- > transportInmatesCost 8 [(8,1),(5,8),(7,3),(8,6)] == 6
+-- 1-6-9-11-13-15-16, 12-14
+-- > transportInmatesCost 16 [(6,11),(9,5),(11,9),(15,9),(13,15),(12,14),(15,16),(1,16)] == 11
 transportInmatesCost :: Int -> [(Int,Int)] -> Int
-transportInmatesCost n pairs = sum $ zipWith (*) (singleInmates : groups) busCost
+transportInmatesCost n pairs = sum $ map busCost (replicate singleInmates 1 ++ groups)
     where
     groups = reportGroups pairs
-    chainedInmates = sum $ zipWith (*) groups [2..]
+    chainedInmates = sum groups
     singleInmates = n - chainedInmates
-    busCost = map (ceiling . sqrt . fromIntegral) [1..]
+    busCost = ceiling . sqrt . fromIntegral
 
 
 -- | convert a list to a list of pairs
--- identical to sliceVertPair implementation
 -- > slicePairs [2,3,4,5] == [(2,3),(4,5)]
 slicePairs :: [a] -> [(a, a)]
 slicePairs [] = []
-slicePairs (x:[]) = []
 slicePairs (x:y:xs) = (x,y) : slicePairs xs
+slicePairs [_singleValueLeft] = []
 
--- | convert a list of pairs to a list
--- > concatPairs [(2,3),(4,5)] == [2,3,4,5]
-concatPairs :: [(a,a)] -> [a]
-concatPairs [] = []
-concatPairs ((x,y):xs) = x:y : concatPairs xs
-
--- | apply two functions on the same value
--- identical to (f &&& g)
--- > ((+1) &&& (*3)) 9 == (10, 27)
--- > forkPair (+1) (*3) 9 == (10, 27)
-forkPair :: (a -> b) -> (a -> c) -> a -> (b, c)
-forkPair f g x = (f x, g x)
-
--- | apply three functions on the same value
--- > forkTriple (+1) (*3) (^2) 9 == (10, 27, 81)
--- > ((+1) &&& (*3) &&& (^2)) 9 == (10, (27, 81))
-forkTriple :: (a -> b) -> (a -> c) -> (a -> d) -> a -> (b, c, d)
-forkTriple f g h x = (f x, g x, h x)
-
--- | use values of a triple as function arguments
--- > uncurry3 (\x y z -> x + y + z) (1,2,3) == 6
-uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
-uncurry3 f ~(a, b, c) = f a b c
-
--- | take two heads off
-tail2 :: [a] -> [a]
-tail2 = tail . tail
 
 -- | parse the input as one string
 -- reading each line separately is simpler
 -- done this way to practice function composition
 input :: IO (Int, [(Int, Int)])
 input = 
-    getContents >>=
-        return . (forkPair head (slicePairs . tail2)) . map read . words
+    getContents <&>
+        (head &&& (slicePairs . drop 2)) . map read . words
+
 
 main :: IO ()
 main = do
-    input >>= putStrLn . show . uncurry transportInmatesCost
+    input >>= print . uncurry transportInmatesCost
