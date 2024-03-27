@@ -1,5 +1,18 @@
 module Helper where
 
+-- | collect info about runtime environment
+import Control.Concurrent (rtsSupportsBoundThreads)
+import GHC.Conc (numCapabilities)
+
+data Runtime = Runtime {
+    isThreaded :: Bool,
+    cores :: Int
+} deriving (Show)
+
+reportRuntime :: Runtime
+reportRuntime = Runtime rtsSupportsBoundThreads numCapabilities
+
+
 -- | convert a list to a list of pairs
 -- > slicePairs [2,3,4,5] == [(2,3),(4,5)]
 slicePairs :: [a] -> [(a, a)]
