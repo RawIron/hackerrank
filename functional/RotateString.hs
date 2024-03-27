@@ -11,6 +11,10 @@ recursive word =
             | k == 1 = w : ws
             | otherwise = go (k-1) (rotate w : w : ws)
 
+-- | rotate a word character by character
+-- for one full rotation
+--
+-- > folding "fold" == ["oldf", "ldfo", "dfol", "fold"]
 folding :: String -> [String]
 folding word =
     tail . reverse $ foldl (\(w:ws) _ -> (rotate w) : w : ws) [word] [1..n]
