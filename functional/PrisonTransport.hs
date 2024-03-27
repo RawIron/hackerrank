@@ -14,7 +14,7 @@ runTests f tests = zipWith (==) (map (f . fst) tests) (map snd tests)
 
 
 runAllTests :: [[Bool]]
-runAllTests = List.foldl' (flip (:)) [] [testMemberIn2, testMergeGroups, testReportGroups]
+runAllTests = List.foldl' (flip (:)) [] [testMemberIn2, testMergeGroups, testReportGroups, testReportGroupsByBatch]
 
 
 -- | split a list into evenly sized batches
@@ -25,6 +25,9 @@ batch batchSize xs = fst . List.foldl' go ([], xs) $ [1 .. (div (length xs) batc
 
 batch10k :: Ord a => [a] -> [[a]]
 batch10k = batch 10000
+
+batch5k :: Ord a => [a] -> [[a]]
+batch5k = batch 5000
 
 exampleBatch :: Bool
 exampleBatch =
@@ -117,10 +120,9 @@ reportGroups = Set.toList . snd . List.foldl' go (Set.empty, Set.empty)
         (xyMemberIn, yxMemberIn) = memberIn2 (x,y) groups
 
 
-testReportGroups :: [Bool]
-testReportGroups = runTests (List.sort . reportGroups) tests
-    where 
-    tests = [
+reportGroupTests :: [([(Int, Int)], [Set Int])]
+reportGroupTests =
+        [
         ([(1,2)], [Set.fromList [1,2]]),
         ([(1,2),(3,4)], [Set.fromList [1,2], Set.fromList [3,4]]),
         ([(2,1),(1,3)], [Set.fromList [2,1,3]]),
@@ -129,13 +131,24 @@ testReportGroups = runTests (List.sort . reportGroups) tests
             [Set.fromList [2,1,3], Set.fromList [4,5,6], Set.fromList [7,8], Set.fromList [9,10,11,12]])
         ]
 
+testReportGroups :: [Bool]
+testReportGroups = runTests (List.sort . reportGroups) reportGroupTests
+
+testReportGroupsByBatch :: [Bool]
+testReportGroupsByBatch = runTests (List.sort . reportGroupsByBatch 20) reportGroupTests
+
+
+-- | pass pairs in batches to reportGroups
+--
+-- different batch sizes had no big effect on runtime
+reportGroupsByBatch :: Int -> [(Int,Int)] -> [Set Int]
+reportGroupsByBatch n pairs
+    | n > length pairs = mergeGroups . concatMap reportGroups $ batch5k pairs
+    | otherwise = mergeGroups . concatMap reportGroups $ batch10k pairs
+
 
 -- |
-reportGroupsByBatch :: [(Int,Int)] -> [Set Int]
-reportGroupsByBatch pairs = mergeGroups . concatMap reportGroups $ batch10k pairs
-
-
--- |
+--
 mergeGroups :: Ord a => [Set a] -> [Set a]
 mergeGroups groups = go [] groups
     where
@@ -151,7 +164,7 @@ mergeGroups groups = go [] groups
 
 testMergeGroups :: [Bool]
 testMergeGroups = runTests (List.sort . mergeGroups) tests
-    where 
+    where
     tests = [
         ([ Set.fromList [2,3,4], Set.fromList [3,5,6], Set.fromList [6,8] ], [ Set.fromList [2,3,4,5,6,8] ]),
         ([ Set.fromList [2,3,4], Set.fromList [3,5,6], Set.fromList [8,9] ], [ Set.fromList [2,3,4,5,6], Set.fromList [8,9] ])
@@ -183,7 +196,7 @@ testMergeGroups = runTests (List.sort . mergeGroups) tests
 transportInmatesCost :: Int -> [(Int,Int)] -> Int
 transportInmatesCost n pairs = sum $ map busCost (replicate singleInmates 1 ++ groups)
     where
-    groups = List.map Set.size $ reportGroupsByBatch pairs
+    groups = List.map Set.size $ reportGroupsByBatch n pairs
     chainedInmates = sum groups
     singleInmates = n - chainedInmates
     busCost = ceiling . sqrt . fromIntegral
