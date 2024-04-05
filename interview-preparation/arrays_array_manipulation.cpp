@@ -280,6 +280,7 @@ set<query> overlap_a_c(const query ab, const  query cd) {
     assert(a < b);
     assert(c < d);
     assert(a < c);
+    assert(b != d);
 
     if (b < c) {
         // id
@@ -343,7 +344,7 @@ set<query> overlap(query ab, query cd) {
 
 
 /*
-    write result of test to ostream
+    test helpers
 */
 void test_open(const string& name) {
     cout << name << '\n';
@@ -363,6 +364,9 @@ void test_out(bool pass) {
     cout << flush;
 }
 
+/*
+    test interval overlapping
+*/
 void test_overlap_ab_cd() {
     test_open("overlap_ab_cd");
     {
@@ -563,6 +567,9 @@ void test_set() {
     }
 }
 
+/*
+    test array manipulation
+*/
 long array_manipulation(const long _n, const vector<query>& queries);
 void test_manipulation() {
     {
@@ -626,22 +633,60 @@ void test_manipulation() {
 
 
 /*
+    given a list of weighted discrete intervals
+    the weights are added where the intervals overlap
+    find the max weight on the number line
 
+    (in case the discrete intervals are represented as finite sets
+     the weights are added for the numbers in the intersections)
+
+    +-----+           3
+      +------+        2
+            +----+    4
+    33555555664444
+
+    the max weight is 6
  */
+
+
+/*
+    take every value of each discrete interval
+    and add its weight to the value on the number line
+
+
+    n := length of number line
+    m := number of weighted discrete intervals in list
+    k := average length of intervals
+
+    operations
+        m * k additions
+        n-1   comparisons
+
+    memory allocation
+        n * (sizeof long)
+        m * (sizeof weighted_interval)
+
+    memory access
+        m   random access
+        m   sequential access to k elements
+        1   sequential access to m elements
+        1   sequential access to n elements
+*/
 long array_manipulation_naive(const long n, const vector<query>& queries) {
-    vector<long> data(n, 0);
+    vector<long> number_line(n, 0);
 
     for (const auto& q : queries) {
-        for (auto i=q.begin-1; i < q.end; ++i) {
-            data[i] += q.addend;
+        for (auto i = q.begin-1; i < q.end; ++i) {
+            number_line[i] += q.addend;
         }
     }
-    return *max_element(begin(data), end(data));
+    return *max_element(begin(number_line), end(number_line));
 }
 
 
 /*
-
+    divide the given intervals into non-overlapping intervals
+    add the weights where intervals overlapped
 */
 long array_manipulation(const long _n, const vector<query>& queries) {
     if (queries.empty()) { return 0L; }
@@ -651,92 +696,83 @@ long array_manipulation(const long _n, const vector<query>& queries) {
 
     for (auto it = next(queries.begin()); it != queries.end(); ++it)
     {
-        query current = *it;
+        auto current = *it;
 
         while(true) {
             const auto right_of_current_it = non_overlapping.lower_bound(current);
 
+            const bool not_begin_it{right_of_current_it != non_overlapping.begin()};
+            const bool not_end_it{right_of_current_it != non_overlapping.end()};
+
+            const auto right_of_current = (not_end_it) ? *right_of_current_it : query {};
+            const auto previous = (not_begin_it && not_end_it) ? *prev(right_of_current_it) : query {};
+
+            query first_in{};
+            query second_in{};
+            query divide_current_with{};
+
             if (right_of_current_it == non_overlapping.end()) {
                 // after the last element
-                auto inplace = overlap(*non_overlapping.rbegin(), current);
-                if (inplace.empty()) {
-                    non_overlapping.insert(current);
-                    break;
-                }
-
-                non_overlapping.erase(*non_overlapping.rbegin());
-                current = *inplace.rbegin();
-                inplace.erase(current);
-                for (auto q: inplace) {
-                    non_overlapping.insert(q);
-                }
-                continue;
+                first_in = *non_overlapping.rbegin();
+                second_in = current;
+                divide_current_with = *non_overlapping.rbegin();
+                goto divide;
             }
-
-            const auto right_of_current = *right_of_current_it;
 
             if (right_of_current_it == non_overlapping.begin()) {
                 // in front of first element
-                auto inplace = overlap(current, right_of_current);
-                 if (inplace.empty()) {
-                    non_overlapping.insert(current);
-                    break;
-                }
-
-                non_overlapping.erase(right_of_current);
-                current = *inplace.rbegin();
-                inplace.erase(current);
-                for (auto q: inplace) {
-                    non_overlapping.insert(q);
-                }
-                continue;
+                first_in = current;
+                second_in = right_of_current;
+                divide_current_with = right_of_current;
+                goto divide;
             }
 
             if (current.begin == right_of_current.begin) {
                 //  it    right_of
                 // (2,4)   (2,9)
-                auto inplace{ overlap(current, right_of_current) };
-
-                non_overlapping.erase(right_of_current);
-                for (auto q: inplace) {
-                    non_overlapping.insert(q);
-                }
-                break;
+                first_in = current;
+                second_in = right_of_current;
+                divide_current_with = right_of_current;
+                goto divide;
             }
 
             // between two elements
-            const auto previous = *prev(right_of_current_it);
             if (current.begin <= previous.end) {
                 //  prev  it
                 // (2,4) (3,6)
                 // (2,9) (3,6)
                 // (2,4) (2,7)
-                non_overlapping.erase(previous);
-
-                auto inplace{ overlap(previous, current) };
-                current = *inplace.rbegin();
-                inplace.erase(current);
-                for (auto q: inplace) {
-                    non_overlapping.insert(q);
-                }
-                continue;
+                first_in = previous;
+                second_in = current;
+                divide_current_with = previous;
+                goto divide;
             }
 
             if (right_of_current.begin <= current.end) {
-                non_overlapping.erase(right_of_current);
-
-                auto inplace{ overlap(current, right_of_current) };
-                current = *inplace.rbegin();
-                inplace.erase(current);
-                for (auto q: inplace) {
-                    non_overlapping.insert(q);
-                }
-                continue;
+                first_in = current;
+                second_in = right_of_current;
+                divide_current_with = right_of_current;
+                goto divide;
             }
 
             // otherwise
             non_overlapping.insert(current);
             break;
+
+        divide:
+            auto inplace = overlap(first_in, second_in);
+            if (inplace.empty()) {
+                non_overlapping.insert(current);
+                break;
+            }
+
+            non_overlapping.erase(divide_current_with);
+            current = *inplace.rbegin();
+            inplace.erase(current);
+            for (auto q: inplace) {
+                non_overlapping.insert(q);
+            }
+            continue; 
         }
     }
 
