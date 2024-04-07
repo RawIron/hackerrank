@@ -529,43 +529,6 @@ void test_overlap() {
     test_overlap_a_c();
 }
 
-void test_set() {
-    {
-    const query value{ 2,4,6 };
-    set<query> intervals{ {2,4,5}, {5,7,6}, {8,8,1} };
-    const query expected{ 2,4,5 };
-    test_out(*intervals.lower_bound(value) == expected);
-    }
-    {
-    const query value{ 2,4,6 };
-    set<query> intervals{ {2,3,5}, {5,7,6}, {8,8,1} };
-    const query expected{ 5,7,6 };
-    test_out(*intervals.lower_bound(value) == expected);
-    }
-    {
-    const query value{ 9,11,3 };
-    set<query> intervals{ {2,4,5}, {5,7,6}, {8,8,1} };
-    set<query>::iterator expected{ intervals.end() };
-    test_out(intervals.lower_bound(value) == expected);
-    }
-    {
-    const query value{ 1,2,1 };
-    set<query> intervals{ {2,4,5}, {5,7,6}, {8,8,1} };
-    const query expected{ 2,4,5 };
-    test_out(*intervals.lower_bound(value) == expected);
-    }
-    {
-    const query value{ 2,4,6 };
-    set<query> intervals{};
-    set<query>::iterator expected{ intervals.end() };
-    test_out(intervals.lower_bound(value) == expected);       
-    }
-    {
-    set<query> intervals{ {2,4,6} };
-    set<query>::iterator expected{ intervals.end() };
-    test_out(ranges::next(intervals.begin(), intervals.end()) == expected);       
-    }
-}
 
 /*
     test array manipulation
@@ -701,21 +664,23 @@ long array_manipulation(const long _n, const vector<query>& queries) {
         while(true) {
             const auto right_of_current_it = non_overlapping.lower_bound(current);
 
-            const bool not_begin_it{right_of_current_it != non_overlapping.begin()};
-            const bool not_end_it{right_of_current_it != non_overlapping.end()};
+            // definitions need to be here
+            // because `goto` cannot bypass initializations
+            const bool not_begin_it{ right_of_current_it != non_overlapping.begin() };
+            const bool not_end_it{ right_of_current_it != non_overlapping.end() };
 
             const auto right_of_current = (not_end_it) ? *right_of_current_it : query {};
             const auto previous = (not_begin_it && not_end_it) ? *prev(right_of_current_it) : query {};
 
             query first_in{};
             query second_in{};
-            query divide_current_with{};
+            query divide_with_current{};
 
             if (right_of_current_it == non_overlapping.end()) {
                 // after the last element
                 first_in = *non_overlapping.rbegin();
                 second_in = current;
-                divide_current_with = *non_overlapping.rbegin();
+                divide_with_current = *non_overlapping.rbegin();
                 goto divide;
             }
 
@@ -723,35 +688,38 @@ long array_manipulation(const long _n, const vector<query>& queries) {
                 // in front of first element
                 first_in = current;
                 second_in = right_of_current;
-                divide_current_with = right_of_current;
+                divide_with_current = right_of_current;
                 goto divide;
             }
 
             if (current.begin == right_of_current.begin) {
-                //  it    right_of
-                // (2,4)   (2,9)
+                // included in right_of_current interval
+                // current  right_of
+                //  (2,4)    (2,9)
                 first_in = current;
                 second_in = right_of_current;
-                divide_current_with = right_of_current;
+                divide_with_current = right_of_current;
                 goto divide;
             }
 
             // between two elements
             if (current.begin <= previous.end) {
-                //  prev  it
-                // (2,4) (3,6)
-                // (2,9) (3,6)
-                // (2,4) (2,7)
+                // overlap with the previous interval
+                //  prev  current
+                // (2,4)  (3,6)
+                // (2,9)  (3,6)
+                // (2,4)  (2,7)
                 first_in = previous;
                 second_in = current;
-                divide_current_with = previous;
+                divide_with_current = previous;
                 goto divide;
             }
 
             if (right_of_current.begin <= current.end) {
+                // overlap with the next interval
                 first_in = current;
                 second_in = right_of_current;
-                divide_current_with = right_of_current;
+                divide_with_current = right_of_current;
                 goto divide;
             }
 
@@ -766,7 +734,7 @@ long array_manipulation(const long _n, const vector<query>& queries) {
                 break;
             }
 
-            non_overlapping.erase(divide_current_with);
+            non_overlapping.erase(divide_with_current);
             current = *inplace.rbegin();
             inplace.erase(current);
             for (auto q: inplace) {
@@ -794,7 +762,6 @@ void solve() {
 
 int main() {
     // test_overlap();
-    // test_set();
     test_manipulation();
     // solve();
     return EXIT_SUCCESS;
