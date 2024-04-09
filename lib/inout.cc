@@ -10,6 +10,7 @@ using namespace std;
 
 
 #if defined(BOOST_VERSION)
+#include <boost/algorithm/string.hpp>
 /*
     split a string into words using boost::split
 */
@@ -40,7 +41,7 @@ vector<string> split_regex(const string& s) {
     split a string into words using a string stream
 */
 vector<string> split_stringstream(const string& s) {
-    stringstream sstream{s};
+    stringstream sstream{ s };
     vector<string> words{};
 
     string word{};
