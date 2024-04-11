@@ -41,34 +41,89 @@ void show(const T value) {
 }
 
 
-template<typename T>
-map<T,int> frequencies(const vector<T>& items) {
-    map<T,int> freq{};
+/*
+    store each item with a list of its indices
+*/
+map<long,vector<int>> positions(const vector<long>& items) {
+    map<long,vector<int>> pos{};
 
-    for (const T& item : items) {
-        ++freq[item];
+    auto idx{0};
+    for (const auto& item : items) {
+        pos[item].push_back(idx);
+        ++idx;
     }
 
-    return freq;
+    return pos;
 }
 
+/*
+*/
+vector<pair<int,int>> count_greater(const vector<int>& smaller, const vector<int>& greater) {
+    vector<pair<int,int>> greater_counts{};
 
+    auto counter{0};
+    auto s_it{ smaller.begin() };
+    for (auto g: greater) {
+        while (s_it != smaller.end() && *s_it < g) {
+            ++counter;
+            ++s_it;
+        }
+        if (counter > 0) {
+            greater_counts.push_back( make_pair(g,counter) );
+        }
+    }
+
+    return greater_counts;
+}
+
+vector<pair<int,int>> count_greater(const vector<pair<int,int>>& smaller, const vector<int>& greater) {
+    vector<pair<int,int>> greater_counts{};
+
+    auto counter{0};
+    auto s_it{ smaller.begin() };
+    for (auto g: greater) {
+        while (s_it != smaller.end() && s_it->first < g) {
+            counter += s_it->second;
+            ++s_it;
+        }
+        if (counter > 0) {
+            greater_counts.push_back( make_pair(g,counter) );
+        }
+    }
+
+    return greater_counts;
+}
+
+/*
+    find 3 numbers of a geometric series
+        (a, a*r, a*r^2)
+    where indices of the numbers are in ascending order
+        i < j < k
+*/
 long count_triplets(const vector<long>& numbers, long r) {
     using triple = array<long, 3>;
 
     long total{0};
-    const auto s{ frequencies<long>(numbers) };
+    const auto s{ positions(numbers) };
 
-    for (auto [elem, count]: s) {
+    for (auto [elem, pos]: s) {
         const triple triplet{ elem, elem * r, elem * r * r };
         if (s.contains(triplet[1]) && s.contains(triplet[2])) {
-            total += s.at(triplet[0]) * s.at(triplet[1]) * s.at(triplet[2]);
+            auto triplet_agg = count_greater(
+                                    count_greater(pos, s.at(triplet[1])),
+                                    s.at(triplet[2]));
+            for (auto&& t: triplet_agg) {
+                total += t.second;
+            }
         }
     }
 
     return total;
 }
 
+/*
+    tests
+*/
 void test_count_triplets() {
     {
     const vector<long> have{ 1, 9, 2, 4, 11 };
@@ -77,13 +132,18 @@ void test_count_triplets() {
     }
     {
     const vector<long> have{ 1, 1, 4, 2, 4, 7 };
-    const long expected{ 4 };
+    const long expected{ 2 };
     assert(count_triplets(have, 2) == expected);
     }
     {
     const vector<long> have{ 1, 3, 9, 9, 27, 81 };
     const long expected{ 6 };
     assert(count_triplets(have, 3) == expected);
+    }
+    {
+    const vector<long> have{ 8, 2, 4, 2, 4, 8, 8 };
+    const long expected{ 6 };
+    assert(count_triplets(have, 2) == expected);
     }
 }
 
