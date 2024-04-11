@@ -103,8 +103,16 @@ vector<pair<int,int>> count_greater(const vector<pair<int,int>>& smaller, const 
 long count_triplets(const vector<long>& numbers, const long r) {
     using triple = array<long, 3>;
 
+    if (r > 31622) {
+        // r^2 > 10^9
+        // 1 <= numbers <= 10^9
+        // last element of the triplet can't be found in the list
+        return 0L;
+    }
+
     long total{0};
     const auto s{ positions(numbers) };
+    const auto max_number{ (*s.rbegin()).first };
 
     if (r == 1) {
         for (auto [_, idx_list]: s) {
@@ -114,9 +122,14 @@ long count_triplets(const vector<long>& numbers, const long r) {
             }
          }
     }
-    else {
+
+    if (r > 1) {
         for (auto [elem, pos]: s) {
-            const triple triplet{ elem, elem * r, elem * r * r };
+            const auto elem_r_squared = elem * r * r;
+            if (elem_r_squared > max_number) {
+                continue;
+            }
+            const triple triplet{ elem, elem * r, elem_r_squared};
             if (s.contains(triplet[1]) && s.contains(triplet[2])) {
                 const auto triplet_agg = count_greater(
                                         count_greater(pos, s.at(triplet[1])),
@@ -159,6 +172,16 @@ void test_count_triplets() {
     const vector<long> have{ 1, 1, 1, 1, 3, 3 };
     const long expected{ 4 };
     assert(count_triplets(have, 1) == expected);
+    }
+    {
+    const vector<long> have{ 1, 1, 1, 1, 3, 3 };
+    const long expected{ 0 };
+    assert(count_triplets(have, 33000) == expected);
+    }
+    {
+    const vector<long> have{ 3, 6, 58, 36 };
+    const long expected{ 0 };
+    assert(count_triplets(have, 12) == expected);
     }
 }
 
