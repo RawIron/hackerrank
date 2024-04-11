@@ -100,20 +100,30 @@ vector<pair<int,int>> count_greater(const vector<pair<int,int>>& smaller, const 
     where indices of the numbers are in ascending order
         i < j < k
 */
-long count_triplets(const vector<long>& numbers, long r) {
+long count_triplets(const vector<long>& numbers, const long r) {
     using triple = array<long, 3>;
 
     long total{0};
     const auto s{ positions(numbers) };
 
-    for (auto [elem, pos]: s) {
-        const triple triplet{ elem, elem * r, elem * r * r };
-        if (s.contains(triplet[1]) && s.contains(triplet[2])) {
-            auto triplet_agg = count_greater(
-                                    count_greater(pos, s.at(triplet[1])),
-                                    s.at(triplet[2]));
-            for (auto&& t: triplet_agg) {
-                total += t.second;
+    if (r == 1) {
+        for (auto [_, idx_list]: s) {
+            const auto len{ idx_list.size() };
+            if (len >= 3) {
+                total += (len * (len-1) * (len-2)) / 6;
+            }
+         }
+    }
+    else {
+        for (auto [elem, pos]: s) {
+            const triple triplet{ elem, elem * r, elem * r * r };
+            if (s.contains(triplet[1]) && s.contains(triplet[2])) {
+                const auto triplet_agg = count_greater(
+                                        count_greater(pos, s.at(triplet[1])),
+                                        s.at(triplet[2]));
+                for (auto&& t: triplet_agg) {
+                    total += t.second;
+                }
             }
         }
     }
@@ -144,6 +154,11 @@ void test_count_triplets() {
     const vector<long> have{ 8, 2, 4, 2, 4, 8, 8 };
     const long expected{ 6 };
     assert(count_triplets(have, 2) == expected);
+    }
+    {
+    const vector<long> have{ 1, 1, 1, 1, 3, 3 };
+    const long expected{ 4 };
+    assert(count_triplets(have, 1) == expected);
     }
 }
 
