@@ -10,8 +10,10 @@ data Runtime = Runtime {
 } deriving (Show)
 
 reportRuntime :: Runtime
-reportRuntime = Runtime rtsSupportsBoundThreads numCapabilities
+reportRuntime = Runtime {isThreaded = rtsSupportsBoundThreads, cores = numCapabilities}
 
+
+-- ======== PAIR
 
 -- | convert a list to a list of pairs
 -- > slicePairs [2,3,4,5] == [(2,3),(4,5)]
@@ -25,6 +27,23 @@ slicePairs (x:y:xs) = (x,y) : slicePairs xs
 concatPairs :: [(a,a)] -> [a]
 concatPairs [] = []
 concatPairs ((x,y):xs) = x:y : concatPairs xs
+
+-- | convert a list of size 2 into a pair
+-- > parify [2,3] == (2,3)
+pairify :: [a] -> (a,a)
+pairify [x,y] = (x,y)
+
+
+-- ======== LIST
+
+-- | take two heads off
+-- identical to @drop 2@
+-- > tail2 [1,2,3,4] == [3,4]
+tail2 :: [a] -> [a]
+tail2 = tail . tail
+
+
+-- ======== FUNCTION COMPOSITION
 
 -- | apply two functions on the same value
 -- identical to @f &&& g@
@@ -43,9 +62,3 @@ forkTriple f g h x = (f x, g x, h x)
 -- > uncurry3 (\x y z -> x + y + z) (1,2,3) == 6
 uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
 uncurry3 f ~(a, b, c) = f a b c
-
--- | take two heads off
--- identical to @drop 2@
--- > tail2 [1,2,3,4] == [3,4]
-tail2 :: [a] -> [a]
-tail2 = tail . tail
