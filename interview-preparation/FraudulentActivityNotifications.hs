@@ -32,8 +32,16 @@ medianTimes2 window = medianTimes2' $ V.modify VA.sort window
         | otherwise = ws ! nHalf + ws ! (nHalf-1)
 
 
-countNotifications :: Vector Int -> Int -> Int
-countNotifications expenses windowSize =
+countFor1 :: Vector Int -> Int
+countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
+    where
+    initial = (0, expenses ! 0)
+    fraud (counter, previous) expense
+        | expense >= 2 * previous = (counter+1, expense)
+        | otherwise = (counter, expense)
+
+countNaive :: Vector Int -> Int -> Int
+countNaive expenses windowSize =
     L.foldl' fraud i0 [i0 .. (n - 1 - windowSize)]
     where
     i0 = 0 :: Int
@@ -46,6 +54,12 @@ countNotifications expenses windowSize =
         window = V.slice i windowSize expenses
         threshold = medianTimes2 window
         expense = expenses ! (i+windowSize)
+
+countNotifications :: Vector Int -> Int -> Int
+countNotifications expenses windowSize
+    | windowSize == V.length expenses = 0
+    | windowSize == 1 = countFor1 expenses
+    | otherwise = countNaive expenses windowSize
 
 
 testMedian :: [Bool]
@@ -66,7 +80,8 @@ testCountNotifications =
     tests = [
             ((V.fromList [2,3,4,2,3,6,8,4,5], 5), 2),
             ((V.fromList [1,2,3,4,4], 4), 0),
-            ((V.fromList [10,20,30,40,50], 3), 1)
+            ((V.fromList [10,20,30,40,50], 3), 1),
+            ((V.fromList [2,3,4,2,3,6,8,4,8], 1), 2)
         ]
 
 runTests :: IO ()
@@ -82,5 +97,5 @@ solve = do
 
 main :: IO ()
 main = do
-    runTests
-    -- solve
+    -- runTests
+    solve
