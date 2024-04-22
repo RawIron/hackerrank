@@ -2,8 +2,8 @@
 #
 # generates test data for the FraudulentActivityNotifications challenge
 #
-# ./prison_gen.sh 100 100 | ./FraudulentActivityNotifications
-# ./prison_gen.sh | ./FraudulentActivityNotifications
+# ./fraud_gen.sh 100 100 | ./FraudulentActivityNotifications
+# ./fraud_gen.sh | ./FraudulentActivityNotifications
 
 n=100000
 d=100
