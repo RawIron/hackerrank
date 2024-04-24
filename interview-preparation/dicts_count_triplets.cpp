@@ -43,9 +43,12 @@ void show(const T value) {
 
 /*
     store each item with a list of its indices
+    indices are in ascending order
+
+    positions([3,2,2,3]) == {2: [1,2], 3: [0,3]}
 */
-map<long,vector<int>> positions(const vector<long>& items) {
-    map<long,vector<int>> pos{};
+map<long, vector<int>> positions(const vector<long>& items) {
+    map<long, vector<int>> pos{};
 
     auto idx{0};
     for (const auto& item : items) {
@@ -57,8 +60,19 @@ map<long,vector<int>> positions(const vector<long>& items) {
 }
 
 /*
+    count how many indexes of the smaller number
+    are in front of an index of the greater number
+
+    Example
+    smaller number is 1 and greater number is 2
+
+    0                  20
+    +---+----+----+----+
+    1    1     1       1
+            2               2 in front for this index
+                  2         3 in front for this index
 */
-vector<pair<int,int>> count_greater(const vector<int>& smaller, const vector<int>& greater) {
+vector<pair<int,int>> count_stage1(const vector<int>& smaller, const vector<int>& greater) {
     vector<pair<int,int>> greater_counts{};
 
     auto counter{0};
@@ -76,13 +90,27 @@ vector<pair<int,int>> count_greater(const vector<int>& smaller, const vector<int
     return greater_counts;
 }
 
-vector<pair<int,int>> count_greater(const vector<pair<int,int>>& smaller, const vector<int>& greater) {
+/*
+    count how many indexes of the smaller numbers accumulated
+    are in front of an index of the greater number
+
+    Example
+    smaller number is 2 and greater number is 3
+
+    0                  20
+    +---+----+----+----+
+            (2,2)
+                 (2,3)
+         3                  0 in front
+                      3     5 accumulated in front
+*/
+vector<pair<int,int>> count_stage2(const vector<pair<int,int>>& smaller_acc, const vector<int>& greater) {
     vector<pair<int,int>> greater_counts{};
 
     auto counter{0};
-    auto s_it{ smaller.begin() };
+    auto s_it{ smaller_acc.begin() };
     for (auto g: greater) {
-        while (s_it != smaller.end() && s_it->first < g) {
+        while (s_it != smaller_acc.end() && s_it->first < g) {
             counter += s_it->second;
             ++s_it;
         }
@@ -99,23 +127,24 @@ vector<pair<int,int>> count_greater(const vector<pair<int,int>>& smaller, const 
         (a, a*r, a*r^2)
     where indices of the numbers are in ascending order
         i < j < k
+    
+    count_triplets([1,4,2,4,1], 2) == 1
 */
 long count_triplets(const vector<long>& numbers, const long r) {
-    using triple = array<long, 3>;
-
     if (r > 31622) {
-        // r^2 > 10^9
-        // 1 <= numbers <= 10^9
-        // last element of the triplet can't be found in the list
+        //  r^2 > 10^9
+        //  1 <= numbers <= 10^9
+        //  => last element of any triplet can't be found in the list
         return 0L;
     }
 
     long total{0};
-    const auto s{ positions(numbers) };
-    const auto max_number{ (*s.rbegin()).first };
+    const auto num_idx{ positions(numbers) };
 
     if (r == 1) {
-        for (auto [_, idx_list]: s) {
+        // combinatorics: n choose 3
+        // no repetition, order does not matter
+        for (auto [_, idx_list]: num_idx) {
             const auto len{ idx_list.size() };
             if (len >= 3) {
                 total += (len * (len-1) * (len-2)) / 6;
@@ -123,18 +152,22 @@ long count_triplets(const vector<long>& numbers, const long r) {
          }
     }
 
+    using triple = array<long, 3>;
+    const auto max_number{ (*num_idx.rbegin()).first };
+
     if (r > 1) {
-        for (auto [elem, pos]: s) {
-            const auto elem_r_squared = elem * r * r;
-            if (elem_r_squared > max_number) {
+        for (auto [num, idx]: num_idx) {
+            const auto num_r_squared = num * r * r;
+            if (num_r_squared > max_number) {
                 continue;
             }
-            const triple triplet{ elem, elem * r, elem_r_squared};
-            if (s.contains(triplet[1]) && s.contains(triplet[2])) {
-                const auto triplet_agg = count_greater(
-                                        count_greater(pos, s.at(triplet[1])),
-                                        s.at(triplet[2]));
-                for (auto&& t: triplet_agg) {
+            const triple triplet{ num, num * r, num_r_squared};
+            const auto triplet_complete{ num_idx.contains(triplet[1]) && num_idx.contains(triplet[2]) };
+            if (triplet_complete) {
+                const auto triplet_counted = count_stage2(
+                                                count_stage1(idx, num_idx.at(triplet[1])),
+                                                num_idx.at(triplet[2]));
+                for (auto&& t: triplet_counted) {
                     total += t.second;
                 }
             }
