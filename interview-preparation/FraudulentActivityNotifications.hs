@@ -8,8 +8,8 @@ import Data.Vector.Algorithms.Intro as VA ( sort )
 import Text.ParserCombinators.ReadPrec (reset)
 
 
-readWindow :: IO Int
-readWindow = do
+readWindowSize :: IO Int
+readWindowSize = do
     getLine <&> read . (!!1) . words
     
 readExpenses :: IO [Int]
@@ -18,27 +18,27 @@ readExpenses = do
     
 readInput :: IO (Vector Int, Int)
 readInput = do
-    window <- readWindow
+    window <- readWindowSize
     expenses <- readExpenses
     return (V.fromList expenses, window)
 
--- | use values of a triple as function arguments
--- > uncurry3 (\x y z -> x + y + z) (1,2,3) == 6
-uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
-uncurry3 f ~(a, b, c) = f a b c
 
-
-data MedianStream = MedianStream {
+-- | moving median window
+--
+data MedianWindow = MedianWindow {
     msSortedRange :: Vector Int,
     msSize :: Int,
     msLeftMax :: Int,
     msMidPoint :: Int,
     msRightMin :: Int
-} | Empty
+} | EmptyMedianWindow deriving (Eq)
 
-fromVector :: Vector Int -> MedianStream
+
+-- | create moving median window from a vector
+--
+fromVector :: Vector Int -> MedianWindow
 fromVector window =
-    MedianStream sortedWindow n (sortedWindow ! 0) midPoint (sortedWindow ! (n-1))
+    MedianWindow sortedWindow n (sortedWindow ! 0) midPoint (sortedWindow ! (n-1))
     where
     sortedWindow = V.modify VA.sort window
     n = length sortedWindow
@@ -48,125 +48,185 @@ fromVector window =
         | otherwise = nHalf
 
 
-medianS :: MedianStream -> Vector Int -> (MedianStream, Int)
-medianS Empty window = reset
+-- | update moving median window
+--
+updateMedianWindow :: MedianWindow -> Int -> Int -> MedianWindow
+updateMedianWindow state deleteValue addValue
+    | deleteValue == addValue = state
+    | otherwise = MedianWindow sortedRange size setLeftMax setMidpoint setRightMin
     where
-    reset = (resetState, medianTimes2 (msSortedRange resetState))
-    resetState = fromVector window
-  
-medianS state window
-    | leaveLeft = reset
-    | blocksLeft = reset
-    | leaveRight = reset
-    | blocksRight = reset
-    | isLeft = moveLeft
-    | isRight = moveRight
-    where
-    reset = (resetState, medianTimes2 (msSortedRange resetState))
-    resetState = fromVector window
-    value = window ! (length window - 1)
-
     size = msSize state
     sortedRange = msSortedRange state
     leftMax = msLeftMax state
     rightMin = msRightMin state
     midPoint = msMidPoint state
-    n = length sortedRange
+    midPointValue = sortedRange ! midPoint
+    
+    setMidpoint
+        --  +  - |
+        | addValue < midPointValue && deleteValue < midPointValue = midPoint
+        --       |   -   +
+        | addValue > midPointValue && deleteValue > midPointValue = midPoint
+        --    +  |   -
+        | addValue < midPointValue && midPointValue < deleteValue = midPoint-1
+        --    -  |    +
+        | deleteValue < midPointValue && midPointValue < addValue = midPoint+1
+        --       -    +
+        | deleteValue == midPointValue && midPointValue < addValue = midPoint+1
+        --    +  -
+        | deleteValue == midPointValue && addValue < midPointValue = midPoint-1
+        --     - +
+        | addValue == midPointValue && deleteValue < midPointValue = midPoint
+        --       +   -
+        | addValue == midPointValue && midPointValue < deleteValue = midPoint
+    
+    setLeftMax
+        | addValue == midPointValue && deleteValue < midPointValue = addValue
+        | deleteValue == midPointValue && addValue > midPointValue = deleteValue + 1
+        | bothLeft && leftMax < maxValue = maxValue
+        | leftMax < addValue && addValue < midPointValue = addValue
+        | leftMax <= deleteValue && deleteValue < midPointValue = deleteValue + 1
+        | otherwise = leftMax
+        where
+        maxValue = max addValue (deleteValue + 1)
+        bothLeft = addValue < midPointValue && deleteValue < midPointValue
+    
+    setRightMin
+        | addValue == midPointValue && deleteValue > midPointValue = addValue
+        | deleteValue == midPointValue && addValue < midPointValue = deleteValue - 1
+        | bothRight && minValue < rightMin = minValue
+        | midPointValue < addValue && addValue < rightMin = addValue
+        | midPointValue < deleteValue && deleteValue <= rightMin = deleteValue - 1
+        | otherwise = rightMin
+        where
+        minValue = min addValue (deleteValue - 1)
+        bothRight = midPointValue < addValue && midPointValue < deleteValue
+
+
+testUpdateMedianWindow :: [Bool]
+testUpdateMedianWindow = zipWith (==)  have expected
+    where
+    expected = map snd tests
+    have = map (func . fst) tests
+    func = uncurry (updateMedianWindow $ MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7)
+    tests = [
+        --                                [1,3,3,4,5,6,7]
+        --                                       |
+        ((2, 3), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 3 3 7),
+
+        --                                [1,2,3,4,6,7,9]
+        --                                       |
+        ((5, 9), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 4),
+
+        --                              [1,2,3,3,4,5,6]
+        --                                     | 
+        ((7, 3), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 3 2 6),
+
+        --                                  [1,3,4,5,6,6,7]
+        --                                         |
+        ((2, 6), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 3 4 6),
+
+        --                                  [1,2,3,5,6,7,8]
+        --                                         |
+        ((4, 8), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 5 4 7),
+
+        --                              [1,1,2,3,5,6,7]
+        --                                     |
+        ((4, 1), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 2 3),
+
+        --                                [1,3,4,4,5,6,7]
+        --                                       |
+        ((2, 4), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 4 3 7),
+
+        --                                [1,2,3,4,4,5,7]
+        --                                       |
+        ((6, 4), MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 4)
+        ]
+
+
+-- | init moving median
+--
+movingMedian :: MedianWindow -> Vector Int -> (MedianWindow, Int)
+movingMedian EmptyMedianWindow window = reset
+    where
+    reset = (resetState, medianTimes2 (msSortedRange resetState))
+    resetState = fromVector window
+
+
+-- | update moving median
+--
+movingMedian state window
+    | leaveSortedRange = reset
+    | exhaustSortedRange = reset
+    | missValue = reset
+    | otherwise = (updatedState, setMedian)
+    where
+    reset = (resetState, medianTimes2 (msSortedRange resetState))
+    resetState = fromVector $ V.slice 1 (length window - 1) window
+
+    updatedState = updateMedianWindow state (window ! 0) insertValue
+    insertValue = window ! (length window - 1)
+
+    sortedRange = msSortedRange updatedState
+    size = msSize updatedState
+    leftMax = msLeftMax updatedState
+    midPoint = msMidPoint updatedState
+    rightMin = msRightMin updatedState
+
+    leaveSortedRange = midPoint < 0 || midPoint >= size
 
     midPointValue = sortedRange ! midPoint
+    exhaustSortedRange = midPointValue < leftMax || rightMin < midPointValue
+    missValue = even size && (midPoint < 1 || midPointValue == leftMax)
+
     midPointPreValue = max leftMax (sortedRange ! (midPoint-1))
-    midPointSucValue = min rightMin (sortedRange ! (midPoint+1))
-
-    leaveLeft = midPoint == 0 && value < midPointValue
-    leaveRight =  midPoint == n-1 && value > midPointValue
-    blocksLeft = midPointPreValue <= value && value <= midPointValue
-    blocksRight = midPointValue <= value && value <= midPointSucValue
-
-    isLeft = value < midPointPreValue
-    isRight = value > midPointSucValue
-    isSizeEven = even (size+1)
-
-    moveLeft  = (MedianStream sortedRange (size+1) setLeftMax setLeftMoveMidpoint setRightMin, setLeftMoveMedian)
-    setLeftMoveMedian
-        | isSizeEven = midPointValue + midPointPreValue
+    setMedian
+        | even size = midPointValue + midPointPreValue
         | otherwise = midPointValue * 2
-    setLeftMoveMidpoint
-        | isSizeEven = midPoint
-        | otherwise = midPoint - 1
-
-    moveRight = (MedianStream sortedRange (size+1) setLeftMax setRightMoveMidpoint setRightMin, setRightMoveMedian)
-    setRightMoveMedian
-        | isSizeEven = midPointValue + midPointSucValue
-        | otherwise = midPointValue * 2 
-    setRightMoveMidpoint
-        | isSizeEven = midPoint + 1
-        | otherwise = midPoint
-
-    setLeftMax
-        | isLeft && value > leftMax = value
-        | otherwise = leftMax
-    setRightMin
-        | isRight && value < rightMin = value
-        | otherwise = rightMin
 
 
-testMedianS :: [Bool]
-testMedianS = zipWith (==)  have expected
+testMovingMedian :: [Bool]
+testMovingMedian = zipWith (==)  have expected
     where
     expected = map snd tests
     have = map (snd . func . fst) tests
-    func = uncurry medianS
+    func = uncurry movingMedian
     tests = [
-        -- leavesLeft
-        ((MedianStream (V.fromList [2,3]) 3 2 0 4, V.fromList [2,3,4,1]), 5),
-        -- leavesRight
-        ((MedianStream (V.fromList [2,3]) 3 2 1 4, V.fromList [2,4,4,5]), 8),
-        -- blocksLeft
-        ((MedianStream (V.fromList [1,3,5]) 3 1 1 5, V.fromList [1,3,4,2]), 5),
-        -- blocksRight
-        ((MedianStream (V.fromList [1,3,5]) 3 1 1 5, V.fromList [1,2,3,5,4]), 6),
-        -- moveRight, size+1 is even
-        ((MedianStream (V.fromList [1,3,5]) 3 1 1 5, V.fromList [3,5,6]), 8),
-        -- moveRight, size+1 is uneven
-        ((MedianStream (V.fromList [1,2,3]) 4 1 1 5, V.fromList [3,5,4]), 4),
-        -- moveLeft, size+1 is even
-        ((MedianStream (V.fromList [1,3,5]) 3 1 1 5, V.fromList [3,5,0]), 4),
-        -- moveLeft, size+1 is uneven
-        ((MedianStream (V.fromList [1,3,3]) 4 1 1 5, V.fromList [3,5,0]), 6)
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, V.fromList [7,2,3,4,5,6,7,1]), 6)
         ]
 
-testFoldMedianS :: [Bool]
-testFoldMedianS = map run tests
+testFoldMovingMedian :: [Bool]
+testFoldMovingMedian = map run tests
     where
     run (initState, windows, expected) = (== expected) . snd . foldl' go initState $ windows
-    go state = medianS (fst state)
+    go state = movingMedian (fst state)
     tests = [
-        -- moveRight moveRight
+        -- right, right
         --                                |
         --                                |   |,9,10]
-        ((MedianStream (V.fromList [3,4,5,6,7,8]) 6 3 3 8, 0),
-         [V.fromList [2,3,9], V.fromList [4,10]], 13),
-        -- moveLeft moveLeft
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
+         [V.fromList [2,9], V.fromList [3,10]], 12),
+        -- left, left
         --                                |
-        --                     [1,2,|     |
-        ((MedianStream (V.fromList [3,4,5,6,7,8]) 6 3 3 8, 0),
-         [V.fromList [2,3,2], V.fromList [4,1]], 9),
-        -- leavesRight moveRight
-        --                                    |
-        --                                    |,9,10]
-        ((MedianStream (V.fromList [3,4,5,6,7,8]) 9 3 5 8, 0),
-         [V.fromList [2,4,1,3,9], V.fromList [1,2,3,4,9,10]], 7),
-        -- leavesLeft moveLeft
+        --                       [1,2,|   |
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
+         [V.fromList [7,1], V.fromList [6,2]], 4),
+        -- leave right, right
+        --                                      |
+        --                                      |,9,10]
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 6 7, 14),
+         [V.fromList [1,4,5,6,7,8,9,9], V.fromList [4,10]], 16),
+        -- leave left, left
         --                          |
-        --                      [1,2|
-        ((MedianStream (V.fromList [3,4,5,6,7,8]) 9 3 0 8, 0),
-         [V.fromList [2,4,1,3,2], V.fromList [1,2,2,3,4,0]], 4),
-        -- moveRight moveRight blocksRight
-        --                              |  
-        --                              |   |,6,8]
-        --                              |  |,4]
-        ((MedianStream (V.fromList [2,2,3,3,4]) 5 2 2 4, 0),
-         [V.fromList [3,4,2,3,6], V.fromList [4,2,3,6,8], V.fromList [2,3,6,8,4]], 8)
+        --                      [0,1|
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 0 7, 2),
+         [V.fromList [9,4,5,6,7,8,9,0], V.fromList [10,1]], 10),
+        -- right, right, exhaust
+        --                                |  
+        --                                |   |,6,9]
+        --                                |     |,7]
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
+         [V.fromList [2,6], V.fromList [3,9], V.fromList [1,4,5,6,7,8,9,7]], 14)
         ]
 
 
@@ -182,8 +242,8 @@ medianTimes2 window
     nHalf = n `div` 2
 
 
-testMedian :: [Bool]
-testMedian =
+testMedianTimes2 :: [Bool]
+testMedianTimes2 =
     zipWith (==) (map (func . fst) tests) (map snd tests)
     where
     func = medianTimes2
@@ -193,6 +253,8 @@ testMedian =
         ]
 
 
+-- | special case of windoSize is 1
+-- pairwise comparison
 countFor1 :: Vector Int -> Int
 countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
     where
@@ -202,6 +264,7 @@ countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
         | otherwise = (counter, expense)
 
 
+-- | every window is sorted
 countNaive :: Vector Int -> Int -> Int
 countNaive expenses windowSize =
     L.foldl' fraud i0 [i0 .. (n - 1 - windowSize)]
@@ -218,26 +281,29 @@ countNaive expenses windowSize =
         expense = expenses ! (i+windowSize)
 
 
+-- | reduce number of sorts
 countStream :: Vector Int -> Int -> Int
 countStream expenses windowSize =
-    snd $ L.foldl' fraud (Empty, 0) [0 .. (n - 1 - windowSize)]
+    snd $ L.foldl' fraud (EmptyMedianWindow, 0) [0 .. (n - 1 - windowSize)]
     where
     n = V.length expenses
-    fraud :: (MedianStream, Int) -> Int -> (MedianStream, Int)
+    fraud :: (MedianWindow, Int) -> Int -> (MedianWindow, Int)
     fraud (state, counter) i
         | expense >= threshold = (nextState, counter+1)
         | otherwise = (nextState, counter)
         where
         window = V.slice i windowSize expenses
-        (nextState, threshold) = medianS state window
+        (nextState, threshold) = movingMedian state window
         expense = expenses ! (i+windowSize)
 
 
+-- | the median of previous expenses is used
+-- to decide whether an expense is fraudulent
 countNotifications :: Vector Int -> Int -> Int
 countNotifications expenses windowSize
     | windowSize == V.length expenses = 0
     | windowSize == 1 = countFor1 expenses
-    -- | windowSize < 25 = countNaive expenses windowSize
+    -- | windowSize < 10 = countNaive expenses windowSize
     | otherwise = countStream expenses windowSize
 
 
@@ -256,9 +322,10 @@ testCountNotifications =
 
 runTests :: IO ()
 runTests = do
-    print testMedianS
-    print testFoldMedianS
-    print testMedian
+    print testUpdateMedianWindow
+    print testMovingMedian
+    print testFoldMovingMedian
+    print testMedianTimes2
     print testCountNotifications
 
 
@@ -266,6 +333,7 @@ solve :: IO ()
 solve = do
     readInput >>=
         print . uncurry countNotifications
+
 
 main :: IO ()
 main = do
