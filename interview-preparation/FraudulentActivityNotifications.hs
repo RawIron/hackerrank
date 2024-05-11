@@ -5,17 +5,16 @@ import Data.List as L ( foldl' )
 import Data.Vector ( Vector, (!) )
 import qualified Data.Vector as V
 import Data.Vector.Algorithms.Intro as VA ( sort )
-import Text.ParserCombinators.ReadPrec (reset)
 
 
 readWindowSize :: IO Int
 readWindowSize = do
     getLine <&> read . (!!1) . words
-    
+
 readExpenses :: IO [Int]
 readExpenses = do
     getLine <&> map read . words
-    
+
 readInput :: IO (Vector Int, Int)
 readInput = do
     window <- readWindowSize
@@ -192,7 +191,16 @@ testMovingMedian = zipWith (==)  have expected
     have = map (snd . func . fst) tests
     func = uncurry movingMedian
     tests = [
-        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, V.fromList [7,2,3,4,5,6,7,1]), 6)
+        -- uneven : left
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, V.fromList [7,1]), 6),
+        -- even : left
+        ((MedianWindow (V.fromList [1,2,3,4,5,6]) 6 1 3 6, V.fromList [6,1]), 5),
+        -- even : right
+        ((MedianWindow (V.fromList [1,2,3,4,5,6]) 6 1 3 6, V.fromList [1,6]), 9),
+        -- even : miss
+        ((MedianWindow (V.fromList [1,2,3,4,5,6]) 6 1 1 6, V.fromList [6,4,5,6,7,8,1]), 11),
+        -- even : miss
+        ((MedianWindow (V.fromList [1,2,3,4,5,6]) 6 2 2 6, V.fromList [6,4,5,6,7,8,1]), 11)
         ]
 
 testFoldMovingMedian :: [Bool]
@@ -206,27 +214,38 @@ testFoldMovingMedian = map run tests
         --                                |   |,9,10]
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
          [V.fromList [2,9], V.fromList [3,10]], 12),
+
         -- left, left
         --                                |
-        --                       [1,2,|   |
+        --                        [1,2|   |
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
          [V.fromList [7,1], V.fromList [6,2]], 4),
+
         -- leave right, right
         --                                      |
         --                                      |,9,10]
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 6 7, 14),
          [V.fromList [1,4,5,6,7,8,9,9], V.fromList [4,10]], 16),
+
         -- leave left, left
         --                          |
         --                      [0,1|
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 0 7, 2),
          [V.fromList [9,4,5,6,7,8,9,0], V.fromList [10,1]], 10),
+
         -- right, right, exhaust
         --                                |  
         --                                |   |,6,9]
         --                                |     |,7]
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
-         [V.fromList [2,6], V.fromList [3,9], V.fromList [1,4,5,6,7,8,9,7]], 14)
+         [V.fromList [2,6], V.fromList [3,9], V.fromList [1,4,5,6,7,8,9,7]], 14),
+
+        -- left, left, exhaust
+        --                                |
+        --                        [1,2|   |
+        --                       [1,|     |
+        ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
+         [V.fromList [6,2], V.fromList [7,1], V.fromList [5,4,5,6,7,8,9,1]], 12)
         ]
 
 
@@ -282,8 +301,8 @@ countNaive expenses windowSize =
 
 
 -- | reduce number of sorts
-countStream :: Vector Int -> Int -> Int
-countStream expenses windowSize =
+countMovingMedian :: Vector Int -> Int -> Int
+countMovingMedian expenses windowSize =
     snd $ L.foldl' fraud (EmptyMedianWindow, 0) [0 .. (n - 1 - windowSize)]
     where
     n = V.length expenses
@@ -304,7 +323,7 @@ countNotifications expenses windowSize
     | windowSize == V.length expenses = 0
     | windowSize == 1 = countFor1 expenses
     -- | windowSize < 10 = countNaive expenses windowSize
-    | otherwise = countStream expenses windowSize
+    | otherwise = countMovingMedian expenses windowSize
 
 
 testCountNotifications :: [Bool]
@@ -337,5 +356,5 @@ solve = do
 
 main :: IO ()
 main = do
-    runTests
-    -- solve
+    -- runTests
+    solve
