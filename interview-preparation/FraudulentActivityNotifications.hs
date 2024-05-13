@@ -40,11 +40,8 @@ fromVector window =
     MedianWindow sortedWindow n (sortedWindow ! 0) midPoint (sortedWindow ! (n-1))
     where
     sortedWindow = V.modify VA.sort window
-    n = length sortedWindow
-    nHalf = n `div` 2
-    midPoint
-        | even n = nHalf-1
-        | otherwise = nHalf
+    n = V.length sortedWindow
+    midPoint = n `div` 2
 
 
 -- | update moving median window
@@ -245,7 +242,13 @@ testFoldMovingMedian = map run tests
         --                        [1,2|   |
         --                       [1,|     |
         ((MedianWindow (V.fromList [1,2,3,4,5,6,7]) 7 1 3 7, 8),
-         [V.fromList [6,2], V.fromList [7,1], V.fromList [5,4,5,6,7,8,9,1]], 12)
+         [V.fromList [6,2], V.fromList [7,1], V.fromList [5,4,5,6,7,8,9,1]], 12),
+        
+        -- right, leave right, right,
+        --
+        -- (V.fromList [1,2,3,4,5,6,7,8,9], 4)
+        ((MedianWindow (V.fromList [1,2,3,4]) 4 1 2 4, 5),
+         [V.fromList [1,5], V.fromList [2,3,4,5,6], V.fromList [3,7]], 11)
         ]
 
 
@@ -286,9 +289,8 @@ countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
 -- | every window is sorted
 countNaive :: Vector Int -> Int -> Int
 countNaive expenses windowSize =
-    L.foldl' fraud i0 [i0 .. (n - 1 - windowSize)]
+    L.foldl' fraud 0 [0 .. (n - 1 - windowSize)]
     where
-    i0 = 0 :: Int
     n = V.length expenses
     fraud :: Int -> Int -> Int
     fraud counter i
@@ -311,7 +313,9 @@ countMovingMedian expenses windowSize =
         | expense >= threshold = (nextState, counter+1)
         | otherwise = (nextState, counter)
         where
-        window = V.slice i windowSize expenses
+        window
+            | i > 0 = V.slice (i-1) (windowSize+1) expenses
+            | i == 0 = V.slice 0 windowSize expenses
         (nextState, threshold) = movingMedian state window
         expense = expenses ! (i+windowSize)
 
@@ -332,11 +336,20 @@ testCountNotifications =
     where
     func = uncurry countNotifications
     tests = [
-            -- 
-            ((V.fromList [2,3,4,2,3,6,8,4,5], 5), 2),
+            ((V.fromList [2,3,4,2,3,6,8,4,8], 1), 2),
+            ((V.fromList [1,2,3,4,4], 5), 0),
             ((V.fromList [1,2,3,4,4], 4), 0),
+            ((V.fromList [1,2,3,4,4], 3), 1),
+            ((V.fromList [1,2,3,4,4], 2), 1),
             ((V.fromList [10,20,30,40,50], 3), 1),
-            ((V.fromList [2,3,4,2,3,6,8,4,8], 1), 2)
+            ((V.fromList [2,2,2,2,2,2,2,2,2], 4), 0),
+            ((V.fromList [2,2,2,2,2,2,2,2,2], 3), 0),
+            ((V.fromList [1,2,3,4,5,6,7,8,9], 5), 1),
+            ((V.fromList [1,2,3,4,5,6,7,8,9], 4), 1),
+            ((V.fromList [9,8,7,6,5,4,3,2,1], 5), 0),
+            ((V.fromList [9,8,7,6,5,4,3,2,1], 4), 0),
+            ((V.fromList [2,3,4,2,3,6,8,4,5], 5), 2),
+            ((V.fromList [2,3,4,2,3,6,8,4,5], 4), 2)
         ]
 
 runTests :: IO ()
