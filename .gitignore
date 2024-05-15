@@ -30,6 +30,11 @@ __dummy.html
 .venv/
 __pycache__/
 
+# -------
+# haskell
+*.hi
+*.prof
+
 # ------
 # vscode
 *.vscode
