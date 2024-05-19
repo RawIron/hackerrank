@@ -4,7 +4,6 @@ import Control.Arrow ( (&&&) )
 import qualified Data.List as L
 import Data.Vector ( Vector )
 import qualified Data.Vector as V
-import Data.Vector.Algorithms.Intro as VA ( sort )
 import Data.Map ( Map, (!) )
 import qualified Data.Map as M
 
@@ -102,7 +101,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,1,2,3,5,6,7]
     --          |
     --     [1,2,3,4,5,6,7]
-    | addValue < midPointValue && midPointValue == deleteValue = -1
+    | deleteValue == midPointValue && addValue < midPointValue = -1
 
     --    2  4    6
     --    -  |    +
@@ -137,6 +136,30 @@ getDirection midPointValue deleteValue addValue
     | addValue == midPointValue && midPointValue < deleteValue = 0
 
 
+-- |
+--
+-- midpoint will be deleted
+-- midpoint must move and cannot stay
+moveWithoutMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
+moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
+    where
+    (mWindow, mKey, mOffset) = flatten state
+
+    keyCount = mWindow ! mKey
+    mKeyIndex = M.findIndex mKey mWindow
+    (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
+    (mKeyNext, mKeyNextValue) = M.elemAt (mKeyIndex + 1) mWindow
+
+    (updatedKey, updatedOffset)
+      | direction == 1 && mKeyNextValue < insertValue = (mKeyNext, 1)
+      | direction == 1 && mKeyNextValue == insertValue = (mKeyNext, 1)
+      | direction == 1 && insertValue < mKeyNextValue = (insertValue, 1)        -- mKey < insertValue
+      | direction == -1 && insertValue < mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue)
+      | direction == -1 && insertValue == mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue+1)
+      | direction == -1 && mKeyPreviousValue < insertValue = (insertValue, 1)   -- insertValue < mKey
+
+
+-- |
 moveMedian :: MovingMedian -> Int -> (Int, Int)
 moveMedian state direction = (updatedKey, updatedOffset)
     where
@@ -153,8 +176,24 @@ moveMedian state direction = (updatedKey, updatedOffset)
       | direction == 1 && mOffset == keyCount = (mKeyNext, 1)
       | direction == -1 && mOffset > 1 = (mKey, mOffset - 1)
       | direction == -1 && mOffset == 1 = (mKeyPrevious, mKeyPreviousValue)
+    
+    stay = direction == 0
+    moveRight = direction == 1
+    moveLeft = direction == -1
 
 
+-- |
+--
+-- edge case : midpoint got deleted
+--
+-- do not delete but leave with count == 0
+--  iterate forward until count of key > 0 to find next
+--  as above but iterate backward to find previous
+--
+-- midpoint can be deleted
+--  cannot find previous and next without having the index of midpoint
+--  must use window before delete and insert of values
+--
 updateMovingMedian :: MovingMedian -> Int -> Int -> MovingMedian
 updateMovingMedian state deleteValue insertValue = MovingMedian updatedWindow updatedKey updatedOffset
     where
@@ -164,9 +203,13 @@ updateMovingMedian state deleteValue insertValue = MovingMedian updatedWindow up
     decrement x = if x > 1 then Just (x-1)
                            else Nothing     -- key will be deleted
 
-    direction = getDirection mKey deleteValue insertValue
+    direction = getDirection mKey deleteValue insertValue   
     moveTo = moveMedian (MovingMedian updatedWindow mKey mOffset)
-    (updatedKey, updatedOffset) = moveTo direction
+    moveNoMidpointTo = moveWithoutMidpoint state insertValue
+
+    (updatedKey, updatedOffset) = case M.lookup mKey updatedWindow of
+        Just _  -> moveTo direction
+        Nothing -> moveNoMidpointTo direction
 
 
 testGetDirection :: [Bool]
@@ -215,7 +258,9 @@ testUpdateMovingMedian = map run tests
         -- right, right
         (setupState, [(1,8),(1,8)], 8),
         -- left, right, right
-        (setupState, [(7,1),(1,9),(1,9)], 8)
+        (setupState, [(7,1),(1,9),(1,9)], 8),
+        -- right, stay
+        (setupState, [(1,9),(7,9)], 8)
         ]
 
 
