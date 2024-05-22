@@ -14,10 +14,18 @@ uncurry3 :: (a -> b -> c -> d) -> ((a, b, c) -> d)
 uncurry3 f ~(a, b, c) = f a b c
 
 
--- |
+-- | the window, the median of this window and all data
+--   needed to recalculate the median effeciently
+--
+-- midpoint
+--  even size = the element with same number of elements
+--              to left and right
+--  uneven size = second of the pair with same number of
+--                elements to left and right
+--
 data MovingMedian = MovingMedian {
         mmWindow :: Map Int Int,
-        mmKey :: Int,
+        mmMidpoint :: Int,
         mmOffset :: Int
         }
 
@@ -26,11 +34,13 @@ flatten :: MovingMedian -> (Map Int Int, Int, Int)
 flatten state = (mWindow, mKey, mOffset)
     where
     mWindow = mmWindow state
-    mKey = mmKey state
+    mKey = mmMidpoint state
     mOffset = mmOffset state
 
 
--- |
+-- | compress a vector into a map with frequency counts
+--   store the midpoint of the vector as a (key, offset)
+--   pair with the map
 --
 --    1 4 3 7 8 1 8 8 1 4
 --
@@ -48,7 +58,7 @@ initMovingMedian :: Vector Int -> MovingMedian
 initMovingMedian keys = MovingMedian window medianKey offset
     where
     window = V.foldl' fill M.empty keys
-    fill w key = M.insertWith (+) key 1 w
+    fill freq key = M.insertWith (+) key 1 freq
     
     midpoint = (V.length keys `div` 2) + 1
     offset = midpoint - keyIndex
@@ -62,14 +72,16 @@ initMovingMedian keys = MovingMedian window medianKey offset
 
 
 -- | determine where the median goes
+--   after a new element arrived and another
+--   element left the window
 --
--- stays == 0
--- right == 1
--- left == -1
+-- stays ==  0
+-- right ==  1
+-- left  == -1
 --
 getDirection :: Int -> Int -> Int -> Int
-getDirection midPointValue deleteValue addValue
-    | deleteValue == addValue = 0
+getDirection midPointValue deleteValue insertValue
+    | deleteValue == insertValue = 0
 
     --  2  3  4
     --  -  +  |
@@ -77,7 +89,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,3,3,4,5,6,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | addValue < midPointValue && deleteValue < midPointValue = 0
+    | insertValue < midPointValue && deleteValue < midPointValue = 0
 
     --        4   5   9
     --        |   -   +
@@ -85,7 +97,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,2,3,4,6,7,9]
     --          |
     --   [1,2,3,4,5,6,7]
-    | addValue > midPointValue && deleteValue > midPointValue = 0
+    | insertValue > midPointValue && deleteValue > midPointValue = 0
 
     --    3  4   7 
     --    +  |   -
@@ -93,7 +105,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,2,3,3,4,5,6]
     --          |
     --     [1,2,3,4,5,6,7]
-    | addValue < midPointValue && midPointValue < deleteValue = -1
+    | insertValue < midPointValue && midPointValue < deleteValue = -1
 
     --    1  4
     --    +  -
@@ -101,7 +113,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,1,2,3,5,6,7]
     --          |
     --     [1,2,3,4,5,6,7]
-    | deleteValue == midPointValue && addValue < midPointValue = -1
+    | deleteValue == midPointValue && insertValue < midPointValue = -1
 
     --    2  4    6
     --    -  |    +
@@ -109,7 +121,7 @@ getDirection midPointValue deleteValue addValue
     --     [1,3,4,5,6,6,7]
     --            |
     --   [1,2,3,4,5,6,7]
-    | deleteValue < midPointValue && midPointValue < addValue = 1
+    | deleteValue < midPointValue && midPointValue < insertValue = 1
 
     --       4    8
     --       -    +
@@ -117,7 +129,7 @@ getDirection midPointValue deleteValue addValue
     --     [1,2,3,5,6,7,8]
     --            |
     --   [1,2,3,4,5,6,7]
-    | deleteValue == midPointValue && midPointValue < addValue = 1
+    | deleteValue == midPointValue && midPointValue < insertValue = 1
 
     --    2  4
     --    -  +
@@ -125,7 +137,7 @@ getDirection midPointValue deleteValue addValue
     --   [1,3,4,4,5,6,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | addValue == midPointValue && deleteValue < midPointValue = 0
+    | insertValue == midPointValue && deleteValue < midPointValue = 0
 
     --       4   6
     --       +   -
@@ -133,13 +145,17 @@ getDirection midPointValue deleteValue addValue
     --   [1,2,3,4,4,5,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | addValue == midPointValue && midPointValue < deleteValue = 0
+    | insertValue == midPointValue && midPointValue < deleteValue = 0
 
 
--- |
+-- | calculate midpoint from previous state
+--   and the newly arrived element into the window
+--   the "reference" to the midpoint on the updated state is invalid
+--   so the previous state is used instead
 --
--- midpoint will be deleted
--- midpoint must move and cannot stay
+-- assumptions
+--  midpoint was deleted
+--  => midpoint must move and cannot stay
 moveWithoutMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
 moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
     where
@@ -153,10 +169,10 @@ moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
     (updatedKey, updatedOffset)
       | direction == 1 && mKeyNextValue < insertValue = (mKeyNext, 1)
       | direction == 1 && mKeyNextValue == insertValue = (mKeyNext, 1)
-      | direction == 1 && insertValue < mKeyNextValue = (insertValue, 1)        -- mKey < insertValue
+      | direction == 1 && insertValue < mKeyNextValue = (insertValue, 1)        -- && midpointValue < insertValue
       | direction == -1 && insertValue < mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue)
       | direction == -1 && insertValue == mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue+1)
-      | direction == -1 && mKeyPreviousValue < insertValue = (insertValue, 1)   -- insertValue < mKey
+      | direction == -1 && mKeyPreviousValue < insertValue = (insertValue, 1)   -- && insertValue < midpointValue
 
 
 -- |
@@ -248,7 +264,7 @@ testMoveMedian = zipWith (==)  have expected
 testUpdateMovingMedian :: [Bool]
 testUpdateMovingMedian = map run tests
     where
-    run (initState, changes, expected) = (== expected) . mmKey $ L.foldl' go initState changes
+    run (initState, changes, expected) = (== expected) . mmMidpoint $ L.foldl' go initState changes
     go state (del, ins) = updateMovingMedian state del ins
 
     setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) 4 2
@@ -268,7 +284,7 @@ testInitMedian :: [Bool]
 testInitMedian = zipWith (==) have expected
     where
     expected = map snd tests
-    have = map ((mmKey &&& mmOffset) . initMovingMedian . fst) tests 
+    have = map ((mmMidpoint &&& mmOffset) . initMovingMedian . fst) tests 
     tests = [
             (V.fromList [1,1,1,3,3,3], (3,1)),
             (V.fromList [1,1,1,3,3], (1,3)),
