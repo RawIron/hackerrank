@@ -18,10 +18,15 @@ uncurry3 f ~(a, b, c) = f a b c
 --   needed to recalculate the median effeciently
 --
 -- midpoint
---  even size = the element with same number of elements
---              to left and right
---  uneven size = second of the pair with same number of
---                elements to left and right
+--  uneven size = the element with same number of elements
+--                to left and right
+--                      |
+--                  1 2 3 4 5
+--
+--  even size = second of the pair with same number of
+--              elements to left and right
+--                       |
+--                   1 2 3 4
 --
 data MovingMedian = MovingMedian {
         mmWindow :: Map Int Int,
@@ -31,20 +36,20 @@ data MovingMedian = MovingMedian {
 
 
 flatten :: MovingMedian -> (Map Int Int, Int, Int)
-flatten state = (mWindow, mKey, mOffset)
+flatten state = (window, midpoint, offset)
     where
-    mWindow = mmWindow state
-    mKey = mmMidpoint state
-    mOffset = mmOffset state
+    window = mmWindow state
+    midpoint = mmMidpoint state
+    offset = mmOffset state
 
 
 -- | compress a vector into a map with frequency counts
 --   store the midpoint of the vector as a (key, offset)
 --   pair with the map
 --
---    1 4 3 7 8 1 8 8 1 4
+--    1 4 3 7 8 1 8 8 1 4       input vector
 --
---              +------------- Position of Median
+--              +-------------- Position of Midpoint
 --              |
 --    1 1 1 3 4 4 7 8 8 8
 --              |
@@ -52,24 +57,26 @@ flatten state = (mWindow, mKey, mOffset)
 --        3,1   | 7,1
 --     1,3      |    8,3
 --              |
---    1 2 3 4 5 6 7 8 9 10
+--    1 2 3 4 5 6 7 8 9 10      index starting from 1
 --
-initMovingMedian :: Vector Int -> MovingMedian
-initMovingMedian keys = MovingMedian window medianKey offset
+fromVector :: Vector Int -> MovingMedian
+fromVector inVector = MovingMedian window midpoint offset
     where
-    window = V.foldl' fill M.empty keys
-    fill freq key = M.insertWith (+) key 1 freq
-    
-    midpoint = (V.length keys `div` 2) + 1
-    offset = midpoint - keyIndex
+    window = V.foldl' increment M.empty inVector
+        where
+        increment freq key = M.insertWith (+) key 1 freq
+
+    offset = midpointIndex - keyIndex
+    midpointIndex = (V.length inVector `div` 2) + 1
 
     -- break out from a fold over a Map ??
-    (_, medianKey, keyIndex) = M.foldlWithKey' go (False, -1, 0) window
-    go (break, key, count) k v
-        | break = (break, key, count)
-        | count + v < midpoint = (False, k, count + v)
-        | otherwise = (True, k, count)
-
+    (_, midpoint, keyIndex) = M.foldlWithKey' go (False, -1, 0) window
+        where
+        go (break, key, count) k v
+            | break = (break, key, count)
+            | count + v < midpointIndex = (False, k, count + v)
+            | otherwise = (True, k, count)
+        
 
 -- | determine where the median goes
 --   after a new element arrived and another
@@ -79,8 +86,8 @@ initMovingMedian keys = MovingMedian window medianKey offset
 -- right ==  1
 -- left  == -1
 --
-getDirection :: Int -> Int -> Int -> Int
-getDirection midPointValue deleteValue insertValue
+deduceDirection :: Int -> Int -> Int -> Int
+deduceDirection midPointValue deleteValue insertValue
     | deleteValue == insertValue = 0
 
     --  2  3  4
@@ -148,7 +155,7 @@ getDirection midPointValue deleteValue insertValue
     | insertValue == midPointValue && midPointValue < deleteValue = 0
 
 
--- | calculate midpoint from previous state
+-- | calculate new midpoint from previous state
 --   and the newly arrived element into the window
 --   the "reference" to the midpoint on the updated state is invalid
 --   so the previous state is used instead
@@ -156,15 +163,11 @@ getDirection midPointValue deleteValue insertValue
 -- assumptions
 --  midpoint was deleted
 --  => midpoint must move and cannot stay
+--
 moveWithoutMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
 moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
     where
     (mWindow, mKey, mOffset) = flatten state
-
-    keyCount = mWindow ! mKey
-    mKeyIndex = M.findIndex mKey mWindow
-    (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
-    (mKeyNext, mKeyNextValue) = M.elemAt (mKeyIndex + 1) mWindow
 
     (updatedKey, updatedOffset)
       | direction == 1 && mKeyNextValue < insertValue = (mKeyNext, 1)
@@ -173,6 +176,11 @@ moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
       | direction == -1 && insertValue < mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue)
       | direction == -1 && insertValue == mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue+1)
       | direction == -1 && mKeyPreviousValue < insertValue = (insertValue, 1)   -- && insertValue < midpointValue
+      where
+        keyCount = mWindow ! mKey
+        mKeyIndex = M.findIndex mKey mWindow
+        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
+        (mKeyNext, mKeyNextValue) = M.elemAt (mKeyIndex + 1) mWindow
 
 
 -- |
@@ -181,21 +189,17 @@ moveMedian state direction = (updatedKey, updatedOffset)
     where
     (mWindow, mKey, mOffset) = flatten state
 
-    keyCount = mWindow ! mKey
-    mKeyIndex = M.findIndex mKey mWindow
-    (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
-    mKeyNext = fst $ M.elemAt (mKeyIndex + 1) mWindow
-
     (updatedKey, updatedOffset)
       | direction == 0 = (mKey, mOffset)
       | direction == 1 && mOffset < keyCount = (mKey, mOffset + 1)
       | direction == 1 && mOffset == keyCount = (mKeyNext, 1)
       | direction == -1 && mOffset > 1 = (mKey, mOffset - 1)
       | direction == -1 && mOffset == 1 = (mKeyPrevious, mKeyPreviousValue)
-    
-    stay = direction == 0
-    moveRight = direction == 1
-    moveLeft = direction == -1
+      where
+        keyCount = mWindow ! mKey
+        mKeyIndex = M.findIndex mKey mWindow
+        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
+        (mKeyNext, _) = M.elemAt (mKeyIndex + 1) mWindow
 
 
 -- |
@@ -213,19 +217,21 @@ moveMedian state direction = (updatedKey, updatedOffset)
 updateMovingMedian :: MovingMedian -> Int -> Int -> MovingMedian
 updateMovingMedian state deleteValue insertValue = MovingMedian updatedWindow updatedKey updatedOffset
     where
-    (mWindow, mKey, mOffset) = flatten state
+    (window, midpointValue, midpointOffset) = flatten state
 
-    updatedWindow = M.update decrement deleteValue $ M.insertWith (+) insertValue 1 mWindow
-    decrement x = if x > 1 then Just (x-1)
-                           else Nothing     -- key will be deleted
+    updatedWindow = M.update decrement deleteValue $ M.insertWith (+) insertValue 1 window
+        where
+        decrement x = if x > 1 then Just (x-1)
+                      else Nothing     -- key will be deleted
 
-    direction = getDirection mKey deleteValue insertValue   
-    moveTo = moveMedian (MovingMedian updatedWindow mKey mOffset)
-    moveNoMidpointTo = moveWithoutMidpoint state insertValue
-
-    (updatedKey, updatedOffset) = case M.lookup mKey updatedWindow of
-        Just _  -> moveTo direction
-        Nothing -> moveNoMidpointTo direction
+    (updatedKey, updatedOffset) =
+        case M.lookup midpointValue updatedWindow of
+            Just _  -> moveTo direction
+            Nothing -> moveNoMidpointTo direction
+        where
+        direction = deduceDirection midpointValue deleteValue insertValue   
+        moveTo = moveMedian (MovingMedian updatedWindow midpointValue midpointOffset)
+        moveNoMidpointTo = moveWithoutMidpoint state insertValue      
 
 
 testGetDirection :: [Bool]
@@ -233,7 +239,8 @@ testGetDirection = zipWith (==)  have expected
     where
     expected = map snd tests
     have = map (func . fst) tests
-    func = uncurry3 getDirection
+    func = uncurry3 deduceDirection
+
     tests = [
         ((4, 2, 3), 0),
         ((4, 5, 9), 0),
@@ -284,7 +291,7 @@ testInitMedian :: [Bool]
 testInitMedian = zipWith (==) have expected
     where
     expected = map snd tests
-    have = map ((mmMidpoint &&& mmOffset) . initMovingMedian . fst) tests 
+    have = map ((mmMidpoint &&& mmOffset) . fromVector . fst) tests 
     tests = [
             (V.fromList [1,1,1,3,3,3], (3,1)),
             (V.fromList [1,1,1,3,3], (1,3)),
