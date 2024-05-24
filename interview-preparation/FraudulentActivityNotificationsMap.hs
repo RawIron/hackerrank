@@ -29,16 +29,18 @@ uncurry3 f ~(a, b, c) = f a b c
 --                   1 2 3 4
 --
 data MovingMedian = MovingMedian {
-        mmWindow :: Map Int Int,
+        mwindow :: Map Int Int,
         mmMidpoint :: Int,
         mmOffset :: Int
         }
+
+data Direction = LEFT | RIGHT | STAY deriving (Eq)
 
 
 flatten :: MovingMedian -> (Map Int Int, Int, Int)
 flatten state = (window, midpoint, offset)
     where
-    window = mmWindow state
+    window = mwindow state
     midpoint = mmMidpoint state
     offset = mmOffset state
 
@@ -78,17 +80,13 @@ fromVector inVector = MovingMedian window midpoint offset
             | otherwise = (True, k, count)
 
 
--- | determine where the median goes
---   after a one element arrived and another
+-- | determine where the midpoint goes
+--   after one element arrived and another
 --   element left the window
 --
--- stays ==  0
--- right ==  1
--- left  == -1
---
-whichWay :: Int -> Int -> Int -> Int
-whichWay midPointValue deleteValue insertValue
-    | deleteValue == insertValue = 0
+whichWay :: Int -> Int -> Int -> Direction
+whichWay midpoint leaving arriving
+    | leaving == arriving = STAY
 
     --  2  3  4
     --  -  +  |
@@ -96,7 +94,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,3,3,4,5,6,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | insertValue < midPointValue && deleteValue < midPointValue = 0
+    | arriving < midpoint && leaving < midpoint = STAY
 
     --        4   5   9
     --        |   -   +
@@ -104,7 +102,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,2,3,4,6,7,9]
     --          |
     --   [1,2,3,4,5,6,7]
-    | insertValue > midPointValue && deleteValue > midPointValue = 0
+    | arriving > midpoint && leaving > midpoint = STAY
 
     --    3  4   7 
     --    +  |   -
@@ -112,7 +110,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,2,3,3,4,5,6]
     --          |
     --     [1,2,3,4,5,6,7]
-    | insertValue < midPointValue && midPointValue < deleteValue = -1
+    | arriving < midpoint && midpoint < leaving = LEFT
 
     --    1  4
     --    +  -
@@ -120,7 +118,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,1,2,3,5,6,7]
     --          |
     --     [1,2,3,4,5,6,7]
-    | deleteValue == midPointValue && insertValue < midPointValue = -1
+    | leaving == midpoint && arriving < midpoint = LEFT
 
     --    2  4    6
     --    -  |    +
@@ -128,7 +126,7 @@ whichWay midPointValue deleteValue insertValue
     --     [1,3,4,5,6,6,7]
     --            |
     --   [1,2,3,4,5,6,7]
-    | deleteValue < midPointValue && midPointValue < insertValue = 1
+    | leaving < midpoint && midpoint < arriving = RIGHT
 
     --       4    8
     --       -    +
@@ -136,7 +134,7 @@ whichWay midPointValue deleteValue insertValue
     --     [1,2,3,5,6,7,8]
     --            |
     --   [1,2,3,4,5,6,7]
-    | deleteValue == midPointValue && midPointValue < insertValue = 1
+    | leaving == midpoint && midpoint < arriving = RIGHT
 
     --    2  4
     --    -  +
@@ -144,7 +142,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,3,4,4,5,6,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | insertValue == midPointValue && deleteValue < midPointValue = 0
+    | arriving == midpoint && leaving < midpoint = STAY
 
     --       4   6
     --       +   -
@@ -152,7 +150,7 @@ whichWay midPointValue deleteValue insertValue
     --   [1,2,3,4,4,5,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | insertValue == midPointValue && midPointValue < deleteValue = 0
+    | arriving == midpoint && midpoint < leaving = STAY
 
 
 -- | calculate new midpoint from current state and
@@ -164,40 +162,39 @@ whichWay midPointValue deleteValue insertValue
 --  midpoint was deleted
 --  => midpoint must move and cannot stay
 --
-calculateMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
-calculateMidpoint currentState insertValue direction = (updatedKey, updatedOffset)
+calculateMidpoint :: MovingMedian -> Int -> Direction -> (Int, Int)
+calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOffset)
     where
-    (mWindow, mKey, mOffset) = flatten currentState
+    (window, midpoint, _) = flatten currentState
 
-    (updatedKey, updatedOffset)
-      | direction == 1 && mKeyNextValue < insertValue = (mKeyNext, 1)
-      | direction == 1 && mKeyNextValue == insertValue = (mKeyNext, 1)
-      | direction == 1 && insertValue < mKeyNextValue = (insertValue, 1)        -- && midpointValue < insertValue
-      | direction == -1 && insertValue < mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue)
-      | direction == -1 && insertValue == mKeyPreviousValue = (mKeyPrevious, mKeyPreviousValue+1)
-      | direction == -1 && mKeyPreviousValue < insertValue = (insertValue, 1)   -- && insertValue < midpointValue
+    (updatedMidpoint, updatedOffset)
+      | direction == RIGHT && next < arriving = (next, 1)
+      | direction == RIGHT && next == arriving = (next, 1)
+      | direction == RIGHT && arriving < next = (arriving, 1)        -- && midpoint < arriving
+      | direction == LEFT && arriving < previous = (previous, previousCount)
+      | direction == LEFT && arriving == previous = (previous, previousCount+1)
+      | direction == LEFT && previous < arriving = (arriving, 1)   -- && arriving < midpoint
       where
-        keyCount = mWindow ! mKey
-        mKeyIndex = M.findIndex mKey mWindow
-        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
-        (mKeyNext, mKeyNextValue) = M.elemAt (mKeyIndex + 1) mWindow
+        midpointIndex = M.findIndex midpoint window
+        (previous, previousCount) = M.elemAt (midpointIndex - 1) window
+        (next, nextCount) = M.elemAt (midpointIndex + 1) window
 
 
 -- | adjust the current midpoint to the updated window
-adjustMidpoint :: Map Int Int -> (Int, Int) -> Int -> (Int, Int)
-adjustMidpoint updatedWindow (currentKey, currentOffset) direction = (updatedKey, updatedOffset)
+adjustMidpoint :: Map Int Int -> (Int, Int) -> Direction -> (Int, Int)
+adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updatedMidpoint, updatedOffset)
     where
-    (updatedKey, updatedOffset)
-      | direction == 0 = (currentKey, currentOffset)
-      | direction == 1 && currentOffset < keyCount = (currentKey, currentOffset + 1)
-      | direction == 1 && currentOffset == keyCount = (mKeyNext, 1)
-      | direction == -1 && currentOffset > 1 = (currentKey, currentOffset - 1)
-      | direction == -1 && currentOffset == 1 = (mKeyPrevious, mKeyPreviousValue)
+    (updatedMidpoint, updatedOffset)
+      | direction == STAY = (currentMidpoint, currentOffset)
+      | direction == RIGHT && currentOffset < midpointCount = (currentMidpoint, currentOffset + 1)
+      | direction == RIGHT && currentOffset == midpointCount = (next, 1)
+      | direction == LEFT && currentOffset > 1 = (currentMidpoint, currentOffset - 1)
+      | direction == LEFT && currentOffset == 1 = (previous, previousCount)
       where
-        keyCount = updatedWindow ! currentKey
-        mKeyIndex = M.findIndex currentKey updatedWindow
-        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) updatedWindow
-        (mKeyNext, _) = M.elemAt (mKeyIndex + 1) updatedWindow
+        midpointCount = updatedWindow ! currentMidpoint
+        midpointIndex = M.findIndex currentMidpoint updatedWindow
+        (previous, previousCount) = M.elemAt (midpointIndex - 1) updatedWindow
+        (next, _) = M.elemAt (midpointIndex + 1) updatedWindow
 
 
 -- | recalculate the median after one value got deleted from and
@@ -214,22 +211,22 @@ adjustMidpoint updatedWindow (currentKey, currentOffset) direction = (updatedKey
 --  previous window must be used, meaning the one before the delete and insert got applied
 --
 recalculate :: MovingMedian -> Int -> Int -> MovingMedian
-recalculate currentState deleteValue insertValue = MovingMedian updatedWindow updatedKey updatedOffset
+recalculate currentState leaving arriving = MovingMedian updatedWindow updatedMidpoint updatedOffset
     where
-    (window, midpointValue, midpointOffset) = flatten currentState
+    (window, midpoint, offset) = flatten currentState
 
-    updatedWindow = M.update decrement deleteValue $ M.insertWith (+) insertValue 1 window
+    updatedWindow = M.update decrement leaving $ M.insertWith (+) arriving 1 window
         where
         decrement x = if x > 1 then Just (x-1)
                       else Nothing     -- key will be deleted
 
-    (updatedKey, updatedOffset) =
-        case M.lookup midpointValue updatedWindow of
+    (updatedMidpoint, updatedOffset) =
+        case M.lookup midpoint updatedWindow of
             Just _  -> adjustTo direction
-            Nothing -> calculateFrom insertValue direction
+            Nothing -> calculateFrom arriving direction
         where
-        direction = whichWay midpointValue deleteValue insertValue
-        adjustTo = adjustMidpoint updatedWindow (midpointValue, midpointOffset)
+        direction = whichWay midpoint leaving arriving
+        adjustTo = adjustMidpoint updatedWindow (midpoint, offset)
         calculateFrom = calculateMidpoint currentState
 
 
@@ -241,37 +238,38 @@ testWhichWay = zipWith (==)  have expected
     func = uncurry3 whichWay
 
     tests = [
-        ((4, 2, 3), 0),
-        ((4, 5, 9), 0),
-        ((4, 7, 3), -1),
-        ((4, 4, 1), -1),
-        ((4, 2, 6), 1),
-        ((4, 4, 8), 1),
-        ((4, 2, 4), 0),
-        ((4, 6, 4), 0)
+        ((4, 2, 3), STAY),
+        ((4, 5, 9), STAY),
+        ((4, 7, 3), LEFT),
+        ((4, 4, 1), LEFT),
+        ((4, 2, 6), RIGHT),
+        ((4, 4, 8), RIGHT),
+        ((4, 2, 4), STAY),
+        ((4, 6, 4), STAY)
         ]
 
 
 testAdjustMidpoint :: [Bool]
-testAdjustMidpoint = zipWith (==)  have expected
+testAdjustMidpoint = zipWith (==) have expected
     where
     expected = map snd tests
     have = map (func . fst) tests
     func = uncurry3 adjustMidpoint
     tests = [
-        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), 0), (4,2)),
-        ((M.fromList [(3,1),(4,3),(7,1)], (4,2), 1), (4,3)),
-        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), 1), (7,1)),
-        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), -1), (4,1)),
-        ((M.fromList [(3,2),(4,2),(7,1)], (4,1), -1), (3,2))
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), STAY), (4,2)),
+        ((M.fromList [(3,1),(4,3),(7,1)], (4,2), RIGHT), (4,3)),
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), RIGHT), (7,1)),
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), LEFT), (4,1)),
+        ((M.fromList [(3,2),(4,2),(7,1)], (4,1), LEFT), (3,2))
         ]
 
 
 testRecalculate :: [Bool]
 testRecalculate = map run tests
     where
-    run (initState, changes, expected) = (== expected) . mmMidpoint $ L.foldl' go initState changes
-    go state (del, ins) = recalculate state del ins
+    run (beginState, changes, expected) = (== expected) . mmMidpoint $ L.foldl' apply beginState changes
+        where
+        apply state (del, ins) = recalculate state del ins
 
     setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) 4 2
     tests = [
