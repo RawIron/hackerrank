@@ -69,25 +69,25 @@ fromVector inVector = MovingMedian window midpoint offset
     offset = midpointIndex - keyIndex
     midpointIndex = (V.length inVector `div` 2) + 1
 
-    -- break out from a fold over a Map ??
+    -- break out from a fold over a @Map k v@ ??
     (_, midpoint, keyIndex) = M.foldlWithKey' go (False, -1, 0) window
         where
         go (break, key, count) k v
             | break = (break, key, count)
             | count + v < midpointIndex = (False, k, count + v)
             | otherwise = (True, k, count)
-        
+
 
 -- | determine where the median goes
---   after a new element arrived and another
+--   after a one element arrived and another
 --   element left the window
 --
 -- stays ==  0
 -- right ==  1
 -- left  == -1
 --
-deduceDirection :: Int -> Int -> Int -> Int
-deduceDirection midPointValue deleteValue insertValue
+whichWay :: Int -> Int -> Int -> Int
+whichWay midPointValue deleteValue insertValue
     | deleteValue == insertValue = 0
 
     --  2  3  4
@@ -155,19 +155,19 @@ deduceDirection midPointValue deleteValue insertValue
     | insertValue == midPointValue && midPointValue < deleteValue = 0
 
 
--- | calculate new midpoint from previous state
---   and the newly arrived element into the window
+-- | calculate new midpoint from current state and
+--   the newly arrived element into the window
 --   the "reference" to the midpoint on the updated state is invalid
---   so the previous state is used instead
+--   so the current state must be used instead
 --
 -- assumptions
 --  midpoint was deleted
 --  => midpoint must move and cannot stay
 --
-moveWithoutMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
-moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
+calculateMidpoint :: MovingMedian -> Int -> Int -> (Int, Int)
+calculateMidpoint currentState insertValue direction = (updatedKey, updatedOffset)
     where
-    (mWindow, mKey, mOffset) = flatten state
+    (mWindow, mKey, mOffset) = flatten currentState
 
     (updatedKey, updatedOffset)
       | direction == 1 && mKeyNextValue < insertValue = (mKeyNext, 1)
@@ -183,41 +183,40 @@ moveWithoutMidpoint state insertValue direction = (updatedKey, updatedOffset)
         (mKeyNext, mKeyNextValue) = M.elemAt (mKeyIndex + 1) mWindow
 
 
--- |
-moveMedian :: MovingMedian -> Int -> (Int, Int)
-moveMedian state direction = (updatedKey, updatedOffset)
+-- | adjust the current midpoint to the updated window
+adjustMidpoint :: Map Int Int -> (Int, Int) -> Int -> (Int, Int)
+adjustMidpoint updatedWindow (currentKey, currentOffset) direction = (updatedKey, updatedOffset)
     where
-    (mWindow, mKey, mOffset) = flatten state
-
     (updatedKey, updatedOffset)
-      | direction == 0 = (mKey, mOffset)
-      | direction == 1 && mOffset < keyCount = (mKey, mOffset + 1)
-      | direction == 1 && mOffset == keyCount = (mKeyNext, 1)
-      | direction == -1 && mOffset > 1 = (mKey, mOffset - 1)
-      | direction == -1 && mOffset == 1 = (mKeyPrevious, mKeyPreviousValue)
+      | direction == 0 = (currentKey, currentOffset)
+      | direction == 1 && currentOffset < keyCount = (currentKey, currentOffset + 1)
+      | direction == 1 && currentOffset == keyCount = (mKeyNext, 1)
+      | direction == -1 && currentOffset > 1 = (currentKey, currentOffset - 1)
+      | direction == -1 && currentOffset == 1 = (mKeyPrevious, mKeyPreviousValue)
       where
-        keyCount = mWindow ! mKey
-        mKeyIndex = M.findIndex mKey mWindow
-        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) mWindow
-        (mKeyNext, _) = M.elemAt (mKeyIndex + 1) mWindow
+        keyCount = updatedWindow ! currentKey
+        mKeyIndex = M.findIndex currentKey updatedWindow
+        (mKeyPrevious, mKeyPreviousValue) = M.elemAt (mKeyIndex - 1) updatedWindow
+        (mKeyNext, _) = M.elemAt (mKeyIndex + 1) updatedWindow
 
 
--- |
+-- | recalculate the median after one value got deleted from and
+--   another value got inserted into the window
 --
--- edge case : midpoint got deleted
+-- nasty edge case : midpoint got deleted
 --
--- do not delete but leave with count == 0
+-- (1) do not delete midpoint but leave it with count == 0
 --  iterate forward until count of key > 0 to find next
 --  as above but iterate backward to find previous
 --
--- midpoint can be deleted
+-- (2) midpoint gets deleted
 --  cannot find previous and next without having the index of midpoint
---  must use window before delete and insert of values
+--  previous window must be used, meaning the one before the delete and insert got applied
 --
-updateMovingMedian :: MovingMedian -> Int -> Int -> MovingMedian
-updateMovingMedian state deleteValue insertValue = MovingMedian updatedWindow updatedKey updatedOffset
+recalculate :: MovingMedian -> Int -> Int -> MovingMedian
+recalculate currentState deleteValue insertValue = MovingMedian updatedWindow updatedKey updatedOffset
     where
-    (window, midpointValue, midpointOffset) = flatten state
+    (window, midpointValue, midpointOffset) = flatten currentState
 
     updatedWindow = M.update decrement deleteValue $ M.insertWith (+) insertValue 1 window
         where
@@ -226,20 +225,20 @@ updateMovingMedian state deleteValue insertValue = MovingMedian updatedWindow up
 
     (updatedKey, updatedOffset) =
         case M.lookup midpointValue updatedWindow of
-            Just _  -> moveTo direction
-            Nothing -> moveNoMidpointTo direction
+            Just _  -> adjustTo direction
+            Nothing -> calculateFrom insertValue direction
         where
-        direction = deduceDirection midpointValue deleteValue insertValue   
-        moveTo = moveMedian (MovingMedian updatedWindow midpointValue midpointOffset)
-        moveNoMidpointTo = moveWithoutMidpoint state insertValue      
+        direction = whichWay midpointValue deleteValue insertValue
+        adjustTo = adjustMidpoint updatedWindow (midpointValue, midpointOffset)
+        calculateFrom = calculateMidpoint currentState
 
 
-testGetDirection :: [Bool]
-testGetDirection = zipWith (==)  have expected
+testWhichWay :: [Bool]
+testWhichWay = zipWith (==)  have expected
     where
     expected = map snd tests
     have = map (func . fst) tests
-    func = uncurry3 deduceDirection
+    func = uncurry3 whichWay
 
     tests = [
         ((4, 2, 3), 0),
@@ -253,26 +252,26 @@ testGetDirection = zipWith (==)  have expected
         ]
 
 
-testMoveMedian :: [Bool]
-testMoveMedian = zipWith (==)  have expected
+testAdjustMidpoint :: [Bool]
+testAdjustMidpoint = zipWith (==)  have expected
     where
     expected = map snd tests
     have = map (func . fst) tests
-    func = uncurry moveMedian
+    func = uncurry3 adjustMidpoint
     tests = [
-        ((MovingMedian (M.fromList [(3,1),(4,2),(7,1)]) 4 2, 0), (4,2)),
-        ((MovingMedian (M.fromList [(3,1),(4,3),(7,1)]) 4 2, 1), (4,3)),
-        ((MovingMedian (M.fromList [(3,1),(4,2),(7,1)]) 4 2, 1), (7,1)),
-        ((MovingMedian (M.fromList [(3,1),(4,2),(7,1)]) 4 2, -1), (4,1)),
-        ((MovingMedian (M.fromList [(3,2),(4,2),(7,1)]) 4 1, -1), (3,2))
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), 0), (4,2)),
+        ((M.fromList [(3,1),(4,3),(7,1)], (4,2), 1), (4,3)),
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), 1), (7,1)),
+        ((M.fromList [(3,1),(4,2),(7,1)], (4,2), -1), (4,1)),
+        ((M.fromList [(3,2),(4,2),(7,1)], (4,1), -1), (3,2))
         ]
 
 
-testUpdateMovingMedian :: [Bool]
-testUpdateMovingMedian = map run tests
+testRecalculate :: [Bool]
+testRecalculate = map run tests
     where
     run (initState, changes, expected) = (== expected) . mmMidpoint $ L.foldl' go initState changes
-    go state (del, ins) = updateMovingMedian state del ins
+    go state (del, ins) = recalculate state del ins
 
     setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) 4 2
     tests = [
@@ -287,8 +286,8 @@ testUpdateMovingMedian = map run tests
         ]
 
 
-testInitMedian :: [Bool]
-testInitMedian = zipWith (==) have expected
+testFromVector :: [Bool]
+testFromVector = zipWith (==) have expected
     where
     expected = map snd tests
     have = map ((mmMidpoint &&& mmOffset) . fromVector . fst) tests 
@@ -302,10 +301,10 @@ testInitMedian = zipWith (==) have expected
 
 runTests :: IO ()
 runTests = do
-    print testInitMedian
-    print testGetDirection
-    print testMoveMedian
-    print testUpdateMovingMedian
+    print testFromVector
+    print testWhichWay
+    print testAdjustMidpoint
+    print testRecalculate
 
 
 main :: IO ()
