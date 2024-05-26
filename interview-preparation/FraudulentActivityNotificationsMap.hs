@@ -1,6 +1,7 @@
 module Main where
 
 import Control.Arrow ( (&&&) )
+import Data.Functor ( (<&>) )
 import qualified Data.List as L
 import Data.Vector ( Vector )
 import qualified Data.Vector as V
@@ -30,17 +31,19 @@ uncurry3 f ~(a, b, c) = f a b c
 --
 data MovingMedian = MovingMedian {
         mwindow :: Map Int Int,
+        mmSizeIsEven :: Bool,
         mmMidpoint :: Int,
         mmOffset :: Int
-        }
+        } | EmptyMovingMedian
 
 data Direction = LEFT | RIGHT | STAY deriving (Eq)
 
 
-flatten :: MovingMedian -> (Map Int Int, Int, Int)
-flatten state = (window, midpoint, offset)
+flatten :: MovingMedian -> (Map Int Int, Bool, Int, Int)
+flatten state = (window, sizeIsEven, midpoint, offset)
     where
     window = mwindow state
+    sizeIsEven = mmSizeIsEven state
     midpoint = mmMidpoint state
     offset = mmOffset state
 
@@ -62,12 +65,13 @@ flatten state = (window, midpoint, offset)
 --    1 2 3 4 5 6 7 8 9 10      index starting from 1
 --
 fromVector :: Vector Int -> MovingMedian
-fromVector inVector = MovingMedian window midpoint offset
+fromVector inVector = MovingMedian window sizeIsEven midpoint offset
     where
     window = V.foldl' increment M.empty inVector
         where
         increment freq key = M.insertWith (+) key 1 freq
 
+    sizeIsEven = even (V.length inVector)
     offset = midpointIndex - keyIndex
     midpointIndex = (V.length inVector `div` 2) + 1
 
@@ -165,7 +169,7 @@ whichWay midpoint leaving arriving
 calculateMidpoint :: MovingMedian -> Int -> Direction -> (Int, Int)
 calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOffset)
     where
-    (window, midpoint, _) = flatten currentState
+    (window, _, midpoint, _) = flatten currentState
 
     (updatedMidpoint, updatedOffset)
       | direction == RIGHT && next < arriving = (next, 1)
@@ -187,7 +191,7 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
     (updatedMidpoint, updatedOffset)
       | direction == STAY = (currentMidpoint, currentOffset)
       | direction == RIGHT && currentOffset < midpointCount = (currentMidpoint, currentOffset + 1)
-      | direction == RIGHT && currentOffset == midpointCount = (next, 1)
+      | direction == RIGHT && currentOffset >= midpointCount = (next, 1)
       | direction == LEFT && currentOffset > 1 = (currentMidpoint, currentOffset - 1)
       | direction == LEFT && currentOffset == 1 = (previous, previousCount)
       where
@@ -197,8 +201,8 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
         (next, _) = M.elemAt (midpointIndex + 1) updatedWindow
 
 
--- | recalculate the median after one value got deleted from and
---   another value got inserted into the window
+-- | recalculate the median after one value got deleted (leaving) from and
+--   another value got inserted (arriving) into the window
 --
 -- nasty edge case : midpoint got deleted
 --
@@ -211,9 +215,9 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
 --  previous window must be used, meaning the one before the delete and insert got applied
 --
 recalculate :: MovingMedian -> Int -> Int -> MovingMedian
-recalculate currentState leaving arriving = MovingMedian updatedWindow updatedMidpoint updatedOffset
+recalculate currentState leaving arriving = MovingMedian updatedWindow sizeIsEven updatedMidpoint updatedOffset
     where
-    (window, midpoint, offset) = flatten currentState
+    (window, sizeIsEven, midpoint, offset) = flatten currentState
 
     updatedWindow = M.update decrement leaving $ M.insertWith (+) arriving 1 window
         where
@@ -230,8 +234,19 @@ recalculate currentState leaving arriving = MovingMedian updatedWindow updatedMi
         calculateFrom = calculateMidpoint currentState
 
 
+median :: MovingMedian -> Int
+median state
+        | sizeIsEven && offset > 1 = 2 * midpoint
+        | sizeIsEven && offset == 1 = previous + midpoint
+        | otherwise = 2 * midpoint
+        where
+        (window, sizeIsEven, midpoint, offset) = flatten state
+        midpointIndex = M.findIndex midpoint window
+        (previous, _) = M.elemAt (midpointIndex - 1) window
+
+
 testWhichWay :: [Bool]
-testWhichWay = zipWith (==)  have expected
+testWhichWay = zipWith (==) have expected
     where
     expected = map snd tests
     have = map (func . fst) tests
@@ -271,7 +286,7 @@ testRecalculate = map run tests
         where
         apply state (del, ins) = recalculate state del ins
 
-    setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) 4 2
+    setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) True 4 2
     tests = [
         -- stay, stay, left, left
         (setupState, [(1,3),(8,7),(8,3),(7,1)], 3),
@@ -297,14 +312,103 @@ testFromVector = zipWith (==) have expected
             ]
 
 
-runTests :: IO ()
-runTests = do
+runMovingMedianTests :: IO ()
+runMovingMedianTests = do
     print testFromVector
     print testWhichWay
     print testAdjustMidpoint
     print testRecalculate
 
 
+-- | special case of windoSize is 1
+-- pairwise comparison
+countFor1 :: Vector Int -> Int
+countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
+    where
+    initial = (0, V.head expenses)
+    fraud (counter, previous) expense
+        | expense >= 2 * previous = (counter+1, expense)
+        | otherwise = (counter, expense)
+
+
+-- | reduce number of sorts
+countMovingMedian :: Vector Int -> Int -> Int
+countMovingMedian expenses windowSize =
+    snd $ L.foldl' fraud (EmptyMovingMedian, 0) [0 .. (n - 1 - windowSize)]
+    where
+    n = V.length expenses
+    fraud :: (MovingMedian, Int) -> Int -> (MovingMedian, Int)
+    fraud (state, counter) i
+        | expense >= threshold = (nextState, counter+1)
+        | otherwise = (nextState, counter)
+        where
+        nextState
+            | i > 0  = recalculate state (expenses V.! (i-1)) (expenses V.! (i-1 + windowSize))
+            | i == 0 = fromVector (V.slice 0 windowSize expenses)
+        threshold = median nextState
+        expense = expenses V.! (i+windowSize)
+
+
+-- | the median of previous expenses is used
+--   to decide whether an expense is fraudulent
+countNotifications :: Vector Int -> Int -> Int
+countNotifications expenses windowSize
+    | windowSize == V.length expenses = 0
+    | windowSize == 1 = countFor1 expenses
+    | otherwise = countMovingMedian expenses windowSize
+
+
+testCountNotifications :: [Bool]
+testCountNotifications =
+    zipWith (==) (map (func . fst) tests) (map snd tests)
+    where
+    func = uncurry countNotifications
+    tests = [
+            ((V.fromList [2,3,4,2,3,6,8,4,8], 1), 2),
+            ((V.fromList [1,2,3,4,4], 5), 0),
+            ((V.fromList [1,2,3,4,4], 4), 0),
+            ((V.fromList [1,2,3,4,4], 3), 1),
+            ((V.fromList [1,2,3,4,4], 2), 1),
+            ((V.fromList [10,20,30,40,50], 3), 1),
+            ((V.fromList [2,2,2,2,2,2,2,2,2], 4), 0),
+            ((V.fromList [2,2,2,2,2,2,2,2,2], 3), 0),
+            ((V.fromList [1,2,3,4,5,6,7,8,9], 5), 1),
+            ((V.fromList [1,2,3,4,5,6,7,8,9], 4), 1),
+            ((V.fromList [9,8,7,6,5,4,3,2,1], 5), 0),
+            ((V.fromList [9,8,7,6,5,4,3,2,1], 4), 0),
+            ((V.fromList [2,3,4,2,3,6,8,4,5], 5), 2),
+            ((V.fromList [2,3,4,2,3,6,8,4,5], 4), 2)
+        ]
+
+
+runCountTests :: IO ()
+runCountTests = do
+    print testCountNotifications
+
+
+readWindowSize :: IO Int
+readWindowSize = do
+    getLine <&> read . (!!1) . words
+
+readExpenses :: IO [Int]
+readExpenses = do
+    getLine <&> map read . words
+
+readInput :: IO (Vector Int, Int)
+readInput = do
+    window <- readWindowSize
+    expenses <- readExpenses
+    return (V.fromList expenses, window)
+
+
+solve :: IO ()
+solve = do
+    readInput >>=
+        print . uncurry countNotifications
+
+
 main :: IO ()
 main = do
-    runTests
+    runMovingMedianTests
+    runCountTests
+    -- solve
