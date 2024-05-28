@@ -29,17 +29,17 @@ uncurry3 f ~(a, b, c) = f a b c
 --                       |
 --                   1 2 3 4
 --
-data MovingMedian = MovingMedian {
+data MovingMedianState = MovingMedianState {
         mwindow :: Map Int Int,
         mmSizeIsEven :: Bool,
         mmMidpoint :: Int,
         mmOffset :: Int
-        } | EmptyMovingMedian
+        } | EmptyMovingMedianState
 
 data Direction = LEFT | RIGHT | STAY deriving (Eq)
 
 
-toTuple :: MovingMedian -> (Map Int Int, Bool, Int, Int)
+toTuple :: MovingMedianState -> (Map Int Int, Bool, Int, Int)
 toTuple state = (window, sizeIsEven, midpoint, offset)
     where
     window = mwindow state
@@ -64,8 +64,8 @@ toTuple state = (window, sizeIsEven, midpoint, offset)
 --              |
 --    1 2 3 4 5 6 7 8 9 10      index starting from 1
 --
-fromVector :: Vector Int -> MovingMedian
-fromVector inVector = MovingMedian window sizeIsEven midpoint offset
+fromVector :: Vector Int -> MovingMedianState
+fromVector inVector = MovingMedianState window sizeIsEven midpoint offset
     where
     window = V.foldl' increment M.empty inVector
         where
@@ -174,7 +174,7 @@ whichWay (midpoint, offsetIsCount) leaving arriving
 --  midpoint was deleted
 --  => midpoint must move and cannot stay
 --
-calculateMidpoint :: MovingMedian -> Int -> Direction -> (Int, Int)
+calculateMidpoint :: MovingMedianState -> Int -> Direction -> (Int, Int)
 calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOffset)
     where
     (window, _, midpoint, _) = toTuple currentState
@@ -182,10 +182,10 @@ calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOff
     (updatedMidpoint, updatedOffset)
       | direction == RIGHT && next < arriving = (next, 1)
       | direction == RIGHT && next == arriving = (next, 1)
-      | direction == RIGHT && arriving < next = (arriving, 1)        -- && midpoint < arriving
+      | direction == RIGHT && arriving < next = (arriving, 1)       -- && midpoint < arriving
       | direction == LEFT && arriving < previous = (previous, previousCount)
       | direction == LEFT && arriving == previous = (previous, previousCount+1)
-      | direction == LEFT && previous < arriving = (arriving, 1)   -- && arriving < midpoint
+      | direction == LEFT && previous < arriving = (arriving, 1)    -- && arriving < midpoint
       where
         midpointIndex = M.findIndex midpoint window
         (previous, previousCount) = M.elemAt (midpointIndex - 1) window
@@ -209,10 +209,10 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
         (next, _) = M.elemAt (midpointIndex + 1) updatedWindow
 
 
--- | recalculate the median after one value got deleted (leaving) from and
+-- | recalculate the @(midpoint, offset)@ after one value got deleted (leaving) from and
 --   another value got inserted (arriving) into the window
 --
--- nasty edge case : midpoint got deleted
+-- edge case : midpoint got deleted
 --
 -- (1) do not delete midpoint but leave it with count == 0
 --  iterate forward until count of key > 0 to find next
@@ -222,8 +222,8 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
 --  cannot find previous and next without having the index of midpoint
 --  previous window must be used, meaning the one before the delete and insert got applied
 --
-recalculate :: MovingMedian -> Int -> Int -> MovingMedian
-recalculate currentState leaving arriving = MovingMedian updatedWindow sizeIsEven updatedMidpoint updatedOffset
+recalculate :: MovingMedianState -> Int -> Int -> MovingMedianState
+recalculate currentState leaving arriving = MovingMedianState updatedWindow sizeIsEven updatedMidpoint updatedOffset
     where
     (window, sizeIsEven, midpoint, offset) = toTuple currentState
 
@@ -238,20 +238,21 @@ recalculate currentState leaving arriving = MovingMedian updatedWindow sizeIsEve
             Nothing -> calculateFrom arriving direction
         where
         count = window ! midpoint
-        direction = whichWay (midpoint, (offset == count)) leaving arriving
+        direction = whichWay (midpoint, offset == count) leaving arriving
         adjustTo = adjustMidpoint updatedWindow (midpoint, offset)
         calculateFrom = calculateMidpoint currentState
 
 
-median :: MovingMedian -> Int
-median state
-        | sizeIsEven && offset > 1 = 2 * midpoint
-        | sizeIsEven && offset == 1 = previous + midpoint
-        | otherwise = 2 * midpoint
-        where
-        (window, sizeIsEven, midpoint, offset) = toTuple state
-        midpointIndex = M.findIndex midpoint window
-        (previous, _) = M.elemAt (midpointIndex - 1) window
+-- | multiply median with 2 to avoid Float numbers
+medianTimes2 :: MovingMedianState -> Int
+medianTimes2 state
+    | sizeIsEven && offset > 1 = 2 * midpoint
+    | sizeIsEven && offset == 1 = previous + midpoint
+    | otherwise = 2 * midpoint
+    where
+    (window, sizeIsEven, midpoint, offset) = toTuple state
+    midpointIndex = M.findIndex midpoint window
+    (previous, _) = M.elemAt (midpointIndex - 1) window
 
 
 testWhichWay :: [Bool]
@@ -295,9 +296,10 @@ testRecalculate = map run tests
         where
         apply state (del, ins) = recalculate state del ins
 
-    setupState1 = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) True 4 2
-    setupState2 = MovingMedian (M.fromList [(1,1),(4,4),(8,2)]) True 4 3
-    setupState3 = MovingMedian (M.fromList [(1,3),(4,1),(8,3)]) True 4 1
+    setupState1 = MovingMedianState (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) True 4 2
+    setupState2 = MovingMedianState (M.fromList [(1,1),(4,4),(8,2)]) True 4 3
+    setupState3 = MovingMedianState (M.fromList [(1,3),(4,1),(8,3)]) True 4 1
+
     tests = [
         -- stay, stay, left, left
         (setupState1, [(1,3),(8,7),(8,3),(7,1)], (3,3)),
@@ -342,7 +344,7 @@ runMovingMedianTests = do
 
 
 -- | special case of windoSize is 1
--- pairwise comparison
+--   use pairwise comparison
 countFor1 :: Vector Int -> Int
 countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
     where
@@ -352,29 +354,33 @@ countFor1 expenses = fst . V.foldl' fraud initial $ V.tail expenses
         | otherwise = (counter, expense)
 
 
--- | reduce number of sorts
+-- | calculate the median by moving it based on the values
+--   which left from and arrived into the window
+--   instead of sorting the window after every change
 countMovingMedian :: Vector Int -> Int -> Int
 countMovingMedian expenses windowSize =
-    snd $ L.foldl' fraud (EmptyMovingMedian, 0) [0 .. (n - 1 - windowSize)]
+    snd $ L.foldl' fraud (EmptyMovingMedianState, 0) [0 .. (n - 1 - windowSize)]
     where
     n = V.length expenses
-    fraud :: (MovingMedian, Int) -> Int -> (MovingMedian, Int)
+    fraud :: (MovingMedianState, Int) -> Int -> (MovingMedianState, Int)
     fraud (state, counter) i
         | expense >= threshold = (nextState, counter+1)
         | otherwise = (nextState, counter)
         where
         nextState
-            | i > 0  = recalculate state (expenses V.! (i-1)) (expenses V.! (i-1 + windowSize))
+            | i > 0  = recalculate state leaving arriving
             | i == 0 = fromVector (V.slice 0 windowSize expenses)
-        threshold = median nextState
-        expense = expenses V.! (i+windowSize)
+        threshold = medianTimes2 nextState
+        expense = expenses V.! (i + windowSize)
+        arriving = expenses V.! (i-1 + windowSize)
+        leaving = expenses V.! (i-1)
 
 
 -- | the median of previous expenses is used
 --   to decide whether an expense is fraudulent
 countNotifications :: Vector Int -> Int -> Int
 countNotifications expenses windowSize
-    | windowSize == V.length expenses = 0
+    | windowSize >= V.length expenses = 0
     | windowSize == 1 = countFor1 expenses
     | otherwise = countMovingMedian expenses windowSize
 
