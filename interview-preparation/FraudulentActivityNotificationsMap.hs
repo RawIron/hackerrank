@@ -39,8 +39,8 @@ data MovingMedian = MovingMedian {
 data Direction = LEFT | RIGHT | STAY deriving (Eq)
 
 
-flatten :: MovingMedian -> (Map Int Int, Bool, Int, Int)
-flatten state = (window, sizeIsEven, midpoint, offset)
+toTuple :: MovingMedian -> (Map Int Int, Bool, Int, Int)
+toTuple state = (window, sizeIsEven, midpoint, offset)
     where
     window = mwindow state
     sizeIsEven = mmSizeIsEven state
@@ -78,8 +78,8 @@ fromVector inVector = MovingMedian window sizeIsEven midpoint offset
     -- break out from a fold over a @Map k v@ ??
     (_, midpoint, keyIndex) = M.foldlWithKey' go (False, -1, 0) window
         where
-        go (break, key, count) k v
-            | break = (break, key, count)
+        go (breakLoop, key, count) k v
+            | breakLoop = (breakLoop, key, count)
             | count + v < midpointIndex = (False, k, count + v)
             | otherwise = (True, k, count)
 
@@ -88,8 +88,8 @@ fromVector inVector = MovingMedian window sizeIsEven midpoint offset
 --   after one element arrived and another
 --   element left the window
 --
-whichWay :: Int -> Int -> Int -> Direction
-whichWay midpoint leaving arriving
+whichWay :: (Int, Bool) -> Int -> Int -> Direction
+whichWay (midpoint, offsetIsCount) leaving arriving
     | leaving == arriving = STAY
 
     --  2  3  4
@@ -116,14 +116,6 @@ whichWay midpoint leaving arriving
     --     [1,2,3,4,5,6,7]
     | arriving < midpoint && midpoint < leaving = LEFT
 
-    --    1  4
-    --    +  -
-    --
-    --   [1,1,2,3,5,6,7]
-    --          |
-    --     [1,2,3,4,5,6,7]
-    | leaving == midpoint && arriving < midpoint = LEFT
-
     --    2  4    6
     --    -  |    +
     --
@@ -132,13 +124,29 @@ whichWay midpoint leaving arriving
     --   [1,2,3,4,5,6,7]
     | leaving < midpoint && midpoint < arriving = RIGHT
 
+    --    1  4
+    --    +  -
+    --
+    --   [1,1,2,3,5,6,7]
+    --          |
+    --     [1,2,3,4,5,6,7]
+    | leaving == midpoint && arriving < midpoint = LEFT
+
     --       4    8
     --       -    +
     --
     --     [1,2,3,5,6,7,8]
     --            |
     --   [1,2,3,4,5,6,7]
-    | leaving == midpoint && midpoint < arriving = RIGHT
+    | leaving == midpoint && offsetIsCount && midpoint < arriving = RIGHT
+
+    --       4    8
+    --       -    +
+    --
+    --   [1,2,4,4,5,7,8]
+    --          |
+    --   [1,2,4,4,4,5,7]
+    | leaving == midpoint && not offsetIsCount && midpoint < arriving = STAY
 
     --    2  4
     --    -  +
@@ -146,7 +154,7 @@ whichWay midpoint leaving arriving
     --   [1,3,4,4,5,6,7]
     --          |
     --   [1,2,3,4,5,6,7]
-    | arriving == midpoint && leaving < midpoint = STAY
+    | arriving == midpoint && leaving < midpoint = RIGHT
 
     --       4   6
     --       +   -
@@ -169,7 +177,7 @@ whichWay midpoint leaving arriving
 calculateMidpoint :: MovingMedian -> Int -> Direction -> (Int, Int)
 calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOffset)
     where
-    (window, _, midpoint, _) = flatten currentState
+    (window, _, midpoint, _) = toTuple currentState
 
     (updatedMidpoint, updatedOffset)
       | direction == RIGHT && next < arriving = (next, 1)
@@ -181,7 +189,7 @@ calculateMidpoint currentState arriving direction = (updatedMidpoint, updatedOff
       where
         midpointIndex = M.findIndex midpoint window
         (previous, previousCount) = M.elemAt (midpointIndex - 1) window
-        (next, nextCount) = M.elemAt (midpointIndex + 1) window
+        (next, _) = M.elemAt (midpointIndex + 1) window
 
 
 -- | adjust the current midpoint to the updated window
@@ -217,7 +225,7 @@ adjustMidpoint updatedWindow (currentMidpoint, currentOffset) direction = (updat
 recalculate :: MovingMedian -> Int -> Int -> MovingMedian
 recalculate currentState leaving arriving = MovingMedian updatedWindow sizeIsEven updatedMidpoint updatedOffset
     where
-    (window, sizeIsEven, midpoint, offset) = flatten currentState
+    (window, sizeIsEven, midpoint, offset) = toTuple currentState
 
     updatedWindow = M.update decrement leaving $ M.insertWith (+) arriving 1 window
         where
@@ -229,7 +237,8 @@ recalculate currentState leaving arriving = MovingMedian updatedWindow sizeIsEve
             Just _  -> adjustTo direction
             Nothing -> calculateFrom arriving direction
         where
-        direction = whichWay midpoint leaving arriving
+        count = window ! midpoint
+        direction = whichWay (midpoint, (offset == count)) leaving arriving
         adjustTo = adjustMidpoint updatedWindow (midpoint, offset)
         calculateFrom = calculateMidpoint currentState
 
@@ -240,7 +249,7 @@ median state
         | sizeIsEven && offset == 1 = previous + midpoint
         | otherwise = 2 * midpoint
         where
-        (window, sizeIsEven, midpoint, offset) = flatten state
+        (window, sizeIsEven, midpoint, offset) = toTuple state
         midpointIndex = M.findIndex midpoint window
         (previous, _) = M.elemAt (midpointIndex - 1) window
 
@@ -253,14 +262,14 @@ testWhichWay = zipWith (==) have expected
     func = uncurry3 whichWay
 
     tests = [
-        ((4, 2, 3), STAY),
-        ((4, 5, 9), STAY),
-        ((4, 7, 3), LEFT),
-        ((4, 4, 1), LEFT),
-        ((4, 2, 6), RIGHT),
-        ((4, 4, 8), RIGHT),
-        ((4, 2, 4), STAY),
-        ((4, 6, 4), STAY)
+        (((4, False), 2, 3), STAY),
+        (((4, False), 5, 9), STAY),
+        (((4, False), 7, 3), LEFT),
+        (((4, False), 4, 1), LEFT),
+        (((4, False), 2, 6), RIGHT),
+        (((4, False), 4, 8), STAY),
+        (((4, False), 2, 4), RIGHT),
+        (((4, False), 6, 4), STAY)
         ]
 
 
@@ -282,20 +291,32 @@ testAdjustMidpoint = zipWith (==) have expected
 testRecalculate :: [Bool]
 testRecalculate = map run tests
     where
-    run (beginState, changes, expected) = (== expected) . mmMidpoint $ L.foldl' apply beginState changes
+    run (beginState, changes, expected) = (== expected) . (mmMidpoint &&& mmOffset) $ L.foldl' apply beginState changes
         where
         apply state (del, ins) = recalculate state del ins
 
-    setupState = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) True 4 2
+    setupState1 = MovingMedian (M.fromList [(1,3),(3,1),(4,2),(7,1),(8,3)]) True 4 2
+    setupState2 = MovingMedian (M.fromList [(1,1),(4,4),(8,2)]) True 4 3
+    setupState3 = MovingMedian (M.fromList [(1,3),(4,1),(8,3)]) True 4 1
     tests = [
         -- stay, stay, left, left
-        (setupState, [(1,3),(8,7),(8,3),(7,1)], 3),
+        (setupState1, [(1,3),(8,7),(8,3),(7,1)], (3,3)),
         -- right, right
-        (setupState, [(1,8),(1,8)], 8),
+        (setupState1, [(1,8),(1,8)], (8,1)),
         -- left, right, right
-        (setupState, [(7,1),(1,9),(1,9)], 8),
+        (setupState1, [(7,1),(1,9),(1,9)], (8,1)),
         -- right, stay
-        (setupState, [(1,9),(7,9)], 8)
+        (setupState1, [(1,9),(7,9)], (8,1)),
+
+        -- stay, right
+        (setupState2, [(4,8),(4,8)], (8,1)),
+        -- left, left
+        (setupState2, [(4,1),(4,1)], (4,1)),
+
+        -- right, right
+        (setupState3, [(1,4),(1,4)], (4,3)),
+        -- stay, stay
+        (setupState3, [(8,4),(8,4)], (4,1))
         ]
 
 
@@ -409,6 +430,6 @@ solve = do
 
 main :: IO ()
 main = do
-    runMovingMedianTests
-    runCountTests
-    -- solve
+    -- runMovingMedianTests
+    -- runCountTests
+    solve
