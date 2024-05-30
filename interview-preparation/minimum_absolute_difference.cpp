@@ -87,7 +87,7 @@ long min_abs_distance_iter(vector<long>::const_iterator first,
     solution with adjacent_difference
 */
 long min_abs_distance_adjacent(vector<long>::const_iterator first,
-                           vector<long>::const_iterator last)
+                               vector<long>::const_iterator last)
 {
     vector<long> sorted( distance(first,last) );
     copy(first, last, sorted.begin());
@@ -96,11 +96,35 @@ long min_abs_distance_adjacent(vector<long>::const_iterator first,
     vector<long> differences( distance(first,last) );
     adjacent_difference(sorted.cbegin(), sorted.cend(), differences.begin());
 
+    // adjacent_difference copies the first element from the input range
+    // into the output range
+    // => ignore the first element
     auto min_distance = *min_element(differences.cbegin()+1, differences.cend());
 
     return min_distance;
 }
 
+/**
+    solution with views
+
+    not so straightforward to change the code
+    unfortunately the below does not work
+
+long min_abs_distance_views(const vector<long>& numbers)
+{
+    auto difference = [](int x, int y) { return y - x; }
+    constexpr int window{2};
+
+    auto min_distance = numbers
+        | views:copy
+        | views:sort
+        | views:adjacent_transform<window>(difference)
+        | views:min_element
+        | views:to<long>
+
+    return min_distance;
+}
+*/
 
 int main() {
     auto numbers{ read_input<long>() };
