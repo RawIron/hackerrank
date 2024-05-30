@@ -62,10 +62,32 @@ long min_abs_distance(const vector<long>& numbers) {
     return min_distance;
 }
 
+/**
+    solution with iterators
+*/
+long min_abs_distance_iter(vector<long>::const_iterator first,
+                           vector<long>::const_iterator last)
+{
+    vector<long> sorted( distance(first,last) );
+    copy(first, last, sorted.begin());
+    sort(sorted.begin(), sorted.end());
+
+    long min_distance{ numeric_limits<long>::max() };
+    for (auto it{sorted.cbegin()+1}; it < sorted.cend(); ++it) {
+        auto distance{ *it  - *(it-1) };
+        if (distance < min_distance) {
+            min_distance = distance;
+        }
+    }
+    
+    return min_distance;
+}
+
 
 int main() {
     auto numbers{ read_input<long>() };
-    auto min_distance = min_abs_distance(numbers);    
+    // auto min_distance = min_abs_distance(numbers);
+    auto min_distance = min_abs_distance_iter(numbers.cbegin(), numbers.cend());
     show(min_distance);
 
     return EXIT_SUCCESS;
