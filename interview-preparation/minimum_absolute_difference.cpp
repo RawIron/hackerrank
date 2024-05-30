@@ -83,6 +83,24 @@ long min_abs_distance_iter(vector<long>::const_iterator first,
     return min_distance;
 }
 
+/**
+    solution with adjacent_difference
+*/
+long min_abs_distance_adjacent(vector<long>::const_iterator first,
+                           vector<long>::const_iterator last)
+{
+    vector<long> sorted( distance(first,last) );
+    copy(first, last, sorted.begin());
+    sort(sorted.begin(), sorted.end());
+
+    vector<long> differences( distance(first,last) );
+    adjacent_difference(sorted.cbegin(), sorted.cend(), differences.begin());
+
+    auto min_distance = *min_element(differences.cbegin()+1, differences.cend());
+
+    return min_distance;
+}
+
 
 int main() {
     auto numbers{ read_input<long>() };
