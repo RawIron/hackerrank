@@ -16,25 +16,30 @@ void show(const T value) {
 }
 
 template<typename T>
-pair< long, vector<T> >
+pair< long, set<T> >
 read_input() {
-    size_t N{};
+    size_t n{};
     long k{};
-    cin >> N >> k;
+    cin >> n >> k;
 
-    vector<T> in_list{};
-    for (size_t i{0}; i < N; ++i) {
+    set<T> in_list{};
+    for (size_t i{0}; i < n; ++i) {
         T element{};
         cin >> element;    
-        in_list.push_back(element);
+        in_list.insert(element);
     }
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 
     return make_pair(k, in_list);
 }
 
+/**
+    two numbers which are _distance_ away from each other are a pair
+    count all pairs in a set of numbers
 
-long count_pairs(const long distance, const vector<long>& numbers) {
+    for any number in a sorted vector search forward for the match
+*/
+long count_pairs(const long distance, const set<long>& numbers) {
     long pairs{0};
 
     vector<long> sorted( numbers.size() );
