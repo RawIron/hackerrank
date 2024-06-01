@@ -73,12 +73,12 @@ long count_pairs(const long distance, const set<long>& numbers) {
 long count_pairs_set(const long distance, const set<long>& numbers) {
     long pairs{0};
 
-    for (const auto number : numbers) {
-        const auto target{ number + distance };
+    for (const auto first : numbers) {
+        const auto target{ first + distance };
         // hackerrank's c++20 is broken
-        // const bool is_in = numbers.contains(target);
-        const bool is_in = numbers.find(target) != numbers.end();
-        if ( is_in ) {
+        // const bool is_second_in = numbers.contains(target);
+        const bool is_second_in = numbers.find(target) != numbers.end();
+        if ( is_second_in ) {
             ++pairs;
         }
     }
