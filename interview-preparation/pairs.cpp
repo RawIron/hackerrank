@@ -33,6 +33,7 @@ read_input() {
     return make_pair(k, in_list);
 }
 
+
 /**
     two numbers which are _distance_ away from each other are a pair
     count all pairs in a set of numbers
@@ -60,6 +61,25 @@ long count_pairs(const long distance, const set<long>& numbers) {
                 ++pairs;
                 break;
             }
+        }
+    }
+
+    return pairs;
+}
+
+/**
+    use a set for fast lookup of `first + distance`
+*/
+long count_pairs_set(const long distance, const set<long>& numbers) {
+    long pairs{0};
+
+    for (const auto number : numbers) {
+        const auto target{ number + distance };
+        // hackerrank's c++20 is broken
+        // const bool is_in = numbers.contains(target);
+        const bool is_in = numbers.find(target) != numbers.end();
+        if ( is_in ) {
+            ++pairs;
         }
     }
 
