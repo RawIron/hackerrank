@@ -21,17 +21,29 @@ struct competition {
         the sum of positive (loss) and negative (win) numbers
 */
 long maximize_luck(const competition& contests) {
-    long total_luck{0};
-
-    total_luck += accumulate(contests.unimportant.cbegin(), contests.unimportant.cend(), 0);
+    const auto
+    loose_all_unimportant{ accumulate(contests.unimportant.cbegin(),
+                                      contests.unimportant.cend(),
+                                      0) };
     
     vector<int> sorted( contests.important.size() );
     copy(contests.important.cbegin(), contests.important.cend(), sorted.begin());
     sort(sorted.begin(), sorted.end());
 
-    auto can_loose{ min(contests.can_loose, contests.important.size()) };
-    total_luck += accumulate(sorted.crbegin(), sorted.crbegin() + can_loose, 0);
-    total_luck += accumulate(sorted.crbegin() + can_loose, sorted.crend(), 0, minus<long>());
+    const auto
+    can_loose{ min(contests.can_loose, contests.important.size()) };
+    const auto
+    loose_many_of_large_luck{ accumulate(sorted.crbegin(),
+                                         sorted.crbegin() + can_loose,
+                                         0) },
+    win_few_of_small_luck{ accumulate(sorted.crbegin() + can_loose,
+                                      sorted.crend(),
+                                      0, minus<long>()) };
+
+    const auto
+    total_luck{ loose_all_unimportant
+                + loose_many_of_large_luck
+                + win_few_of_small_luck };
 
     return total_luck;
 }
@@ -77,7 +89,7 @@ void show(const T value) {
 
 
 int main() {
-    auto max_luck = maximize_luck(read_input());
+    auto max_luck = maximize_luck( read_input() );
     show(max_luck);
 
     return EXIT_SUCCESS;
