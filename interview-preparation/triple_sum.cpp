@@ -127,13 +127,23 @@ long count_triplets(const vector<int>& a, const vector<int>& b, const vector<int
     return counter;
 }
 
-bool test_count_triplets() {
-    const vector<int> a{1,3,5,7};
-    const vector<int> b{5,7,9};
-    const vector<int> c{7,9,11,13};
 
-    if (count_triplets(a, b, c) == 12) { return true; }
-    else { return false; }
+vector<bool> test_count_triplets() {
+    using triple = tuple< vector<int>, vector<int>, vector<int> >;
+    using test_t = pair< triple, long >;
+
+    const array<test_t, 1> tests = {{
+        { { {1,3,5,7}, {5,7,9}, {7,9,11,13} }, 12 }
+    }};
+
+    vector<bool> result;
+
+    for (auto&& [have, expected] : tests) {
+        const auto [a, b, c] = have;
+        result.push_back( (count_triplets(a, b, c) == expected) );
+    }
+
+    return result;
 }
 
 
