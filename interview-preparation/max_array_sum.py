@@ -10,50 +10,100 @@ def show(result):
         out.write(str(result) + '\n')
 
 
-def search_max(memo, pos_sequence, begin):
-    if (len(pos_sequence) < 3):
+def search(memo, pos_sequence, begin):
+    '''
+    at any point in the search for the subset with the max sum
+    there are two possible moves
+        jump over the neighbor (plus 2)
+        skip the element next to the neighbor (plus 3)
+
+    jump ahead any further would skip a positive number
+    that could have been added to the sum
+    thus the resulting sum of a subset containing such a
+    long jump will not be maximal
+        *        *                      (plus 4)
+        *   *    *                      (plus 2, plus 2)
+        3 6 5 12 1 : 3 + 1 < 3 + 5 + 1
+
+    a jump any shorter (plus 1) would land on the neighbor
+
+      3 6 5 12 1 2 24 7
+
+              3
+            /   \
+          5      12
+         /  \    / \
+        1   2   2   24
+      /  \  |   |
+     24  7  7   7
+    '''
+    if len(pos_sequence) < 3:
         return pos_sequence[0]
 
-    plus2_path = 0
-    plus3_path = 0
+    search_sums = list()
 
-    if (begin+2 not in memo):
-        plus2_path = search_max(memo, pos_sequence[2:], begin+2)
-        memo[begin+2] = plus2_path
-    else:
-        plus2_path = memo[begin+2]
-    
-    if (len(pos_sequence) > 3):
-        if (begin+3 not in memo):
-            plus3_path = search_max(memo, pos_sequence[3:], begin+3)
-            memo[begin+3] = plus3_path
+    for jump in [2, 3]:
+        if len(pos_sequence) <= jump:
+            break
+
+        jump_sum = 0
+
+        if begin + jump not in memo:
+            jump_sum = search(memo, pos_sequence[jump:], begin + jump)
+            memo[begin + jump] = jump_sum
         else:
-            plus3_path = memo[begin+3]
+            jump_sum = memo[begin + jump]
 
-    max_path = max(plus2_path, plus3_path) + pos_sequence[0]
-    memo[begin] = max_path
+        search_sums.append(jump_sum)
 
-    # if (len(pos_sequence) <= 3):
-    #     print(pos_sequence[0], (pos_sequence[2], plus2_path))
-    # else:
-    #     print(pos_sequence[0], (pos_sequence[2], plus2_path), (pos_sequence[3], plus3_path))
+    max_sum = max(search_sums) + pos_sequence[0]
+    memo[begin] = max_sum
 
-    return max_path
+    DEBUG = False
+    if DEBUG:
+        if len(pos_sequence) <= 3:
+            print(pos_sequence[0], (pos_sequence[2], search_sums[0]))
+        else:
+            print(pos_sequence[0], (pos_sequence[2], search_sums[0]), (pos_sequence[3], search_sums[1]))
+
+    return max_sum
 
 
-def test_search_max():
+def test_search():
     tests = [
         ((dict(), [3, 6, 5, 12, 1, 2, 24, 7], 0), 39),
         ((dict(), [2,3], 0), 2)
     ]
 
-    for test in tests:
-        (have, expected) = test
-        (memo, seq, begin) = have
-        print(search_max(memo, seq, begin))
+    return [search(memo, seq, begin) == expected for ((memo, seq, begin), expected) in tests]
+
+
+def search_max(pos_sequence):
+    '''
+    from a sequence of positive numbers find the subset with the largest sum
+    a subset can only contain elements which are not neighbors in the sequence
+
+    as no subset can contain neighbors the search starts either with the first
+    or with the second element
+    '''
+    if len(pos_sequence) == 1:
+        return pos_sequence[0]
+    if len(pos_sequence) == 2:
+        return max(pos_sequence[0], pos_sequence[1])
+
+    memo = dict()  
+    start_fst_max = search(memo, pos_sequence[::], 0)
+    start_snd_max = search(memo, pos_sequence[1::], 1)
+
+    return max(start_fst_max, start_snd_max)
 
 
 def partition(numbers):
+    '''
+    from a list of numbers extract the sequences of positive numbers
+
+    partition([1,2,-3,-4,5,-6]) == [[1,2], [5]]
+    '''
     partitions = list()
     indices = [i for i, x in enumerate(numbers) if x < 0]
     indices.append(len(numbers))
@@ -74,36 +124,24 @@ def test_partition():
         ([-2, 1 , 3, -4, 5], [[1, 3], [5]])
     ]
 
-    for test in tests:
-        (have, expected) = test
-        print(partition(have))
+    return [partition(have) == expected for (have, expected) in tests]
 
 
-'''
-    build any subset from elements which are not neighbors
-    find the subset with the largest sum
-    
-    [3,4,5,-1,-2,4,6,-5,1] == [3,5,6,1]
-    [3,7,4,6,5] == []
-    [6,3,8,9,5,1,2,12,2,28] == []
-    
-    any negative number partitions the search
-     => only look at sequences of positive numbers
-'''
 def max_sum_subset(numbers):
+    '''
+    build any subset from elements which are not neighbors
+    and find the subset with the largest sum
+
+    max_sum_subset([3,4,5,-1,-2,4,6,-5,1]) == sum([3,5,6,1]) == 15
+
+    any negative number partitions the search
+    => only look at sequences of positive numbers
+    '''
     parts = partition(numbers)
     max_sum = 0
 
-    for part in parts:
-        if (len(part) == 1):
-            max_sum += part[0]
-        elif (len(part) == 2):
-            max_sum += max(part[0], part[1])
-        else:
-            memo = dict()     
-            max_uneven = search_max(memo, part[::], 0)
-            max_even = search_max(memo, part[1::], 1)   
-            max_sum += max(max_uneven, max_even)
+    for part in parts:   
+        max_sum += search_max(part)
     
     return max_sum
 
@@ -111,18 +149,19 @@ def max_sum_subset(numbers):
 def test_max_sum_subset():
     tests = [
         ([3, 6, -5, -12, 1, 2, 24, -7], 31),
-        ([-2, 1 , 3, -4, 5], 8)
+        ([-2, 1 , 3, -4, 5], 8),
+        ([3,4,5,-1,-2,4,6,-5,1], 15),
+        ([3,7,4,6,5], 13),
+        ([6,3,8,9,5,1,2,12,2,28], 59)
     ]
 
-    for test in tests:
-        (have, expected) = test
-        print(max_sum_subset(have)) 
+    return [max_sum_subset(have) == expected for (have, expected) in tests]
 
 
 def run_tests():
-    test_search_max()
-    test_partition()
-    test_max_sum_subset()
+    print(test_search())
+    print(test_partition())
+    print(test_max_sum_subset())
 
 
 def solve():
@@ -134,7 +173,7 @@ def solve():
 
 if __name__ == '__main__':
     '''
-        keep global namespace clean
+    a clean global namespace
     '''
     run_tests()
     # solve()
