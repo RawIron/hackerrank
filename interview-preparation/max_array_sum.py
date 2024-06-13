@@ -41,7 +41,7 @@ def search(memo, begin, pos_seq_slice):
         return pos_seq_slice[0]     # this is the first element of any subset
                                     # in this search
                                     # the second element is a neighbor and
-                                    # must be skipped
+                                    # is ignored
 
     search_sums = list()
 
@@ -111,9 +111,8 @@ def gen_parts(numbers):
 
     gen_parts([1,2,-3,-4,5,-6]) == [[1,2], [5]]
     '''
-    if numbers[-1] > 0:
-        numbers.append(-1)
     indices = [i for i, x in enumerate(numbers) if x < 0]
+    indices.append(len(numbers))
 
     begin = 0
     for end in indices:
