@@ -40,7 +40,7 @@ char *expand(const int fives, const int threes) {
 typedef struct {
   int fives;
   int threes;
-} decent_simple;
+} decent;
 
 /*
  * 6  ->  fives:  6, threes: 0
@@ -53,7 +53,7 @@ typedef struct {
  * 17 ->  fives: 12, threes: 5
  * ..
  */
-decent_simple calc_decent_number(const int digits) {
+decent calculate(const int digits) {
     int fives = (digits / 3) * 3; // digits-2 <= fives <= digits
                                   // 0 <= digits - fives < 3
     int threes = digits % 3;      // 0 <= threes < 3
@@ -66,7 +66,7 @@ decent_simple calc_decent_number(const int digits) {
                                   //  (2 + 3*1) % 5 == 0
     }
 
-    decent_simple number = { fives, threes };
+    decent number = { fives, threes };
     return number;
 }
 
@@ -79,7 +79,7 @@ int main(void) {
         int digits = 0;
         scanf("%d", &digits);
 
-        decent_simple number = calc_decent_number(digits);
+        decent number = calculate(digits);
         char *result = expand(number.fives, number.threes);
         if (result) {
             printf("%s\n", result);
