@@ -11,19 +11,25 @@
  *
  */
 char *expand(const int fives, const int threes) {
-    char *expanded = malloc((fives + threes + 1) * sizeof(char));
-    if (!expanded) return nullptr;
-    expanded[0] = '\0';
+    char *expanded = NULL;
 
     if (threes % 5 == 0) {
-        for (int i = 0; i < fives; ++i) {
-            strcat(expanded, "5");
+        expanded = malloc((fives + threes + 1) * sizeof(char));
+        if (!expanded) return NULL;
+        
+        int idx = 0;
+        for (int i = 0; i < fives; ++i, ++idx) {
+            expanded[idx] = '5';
         }
-        for (int i = 0; i < threes; ++i) {
-            strcat(expanded, "3");
+        for (int i = 0; i < threes; ++i, ++idx) {
+            expanded[idx] = '3';
         }
+        expanded[idx] = '\0';
     }
     else {
+        expanded = malloc((2 + 1) * sizeof(char));
+        if (!expanded) return NULL;
+
         strcpy(expanded, "-1");
     }
 
