@@ -1,3 +1,4 @@
+#include <vector>
 #include <map>
 #include <string>
 
@@ -24,7 +25,7 @@ map<char,int> frequencies(const string& word) {
    frequencies({"the", "car", "the"}) == {{"the",2}, {"car",1}}
  */
 template<typename T>
-map<T,int> frequencies(const T& items) {
+map<T,int> frequencies(const vector<T>& items) {
     map<T,int> freq{};
 
     for (const T& item : items) {
@@ -32,4 +33,21 @@ map<T,int> frequencies(const T& items) {
     }
 
     return freq;
+}
+
+
+/**
+ * in progress ..
+ */
+void copy_while(set<query>::iterator source_it,
+                set<query>::iterator source_end,
+                insert_iterator<set<query>> dest_it,
+                function<bool(query)> lambda)
+{
+    while (source_it != source_end && lambda(*source_it)) {
+        *dest_it = *source_it;
+        ++source_it;
+        ++dest_it;
+    }
+    return;
 }
