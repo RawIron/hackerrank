@@ -1,10 +1,8 @@
-#include <iostream>
-#include <limits>
 #include <string>
-#include <sstream>
-#include <regex>
 #include <vector>
 #include <functional>
+#include <iterator>
+#include <iostream>
 
 using namespace std;
 
@@ -21,15 +19,18 @@ vector<string> split_boost(const string& s) {
 }
 #endif
 
+
 /*
     split a string into words using a regex
 */
+#include <regex>
+
 vector<string> split_regex(const string& s) {
     vector<string> words{};
 
-    const regex word_pattern{R"(\w)"};
-    auto text_begin = sregex_iterator(s.cbegin(), s.cend(), word_pattern);
-    auto text_end = sregex_iterator();
+    const regex word_pattern{ R"(\w+)" };
+    const auto text_begin = sregex_iterator(s.cbegin(), s.cend(), word_pattern);
+    const auto text_end = sregex_iterator();
     for (sregex_iterator it{text_begin}; it != text_end; ++it) {
         words.push_back(it->str());
     }
@@ -37,9 +38,25 @@ vector<string> split_regex(const string& s) {
     return words;
 }
 
+vector<string> split_regex_token(const string& str) {
+    vector<string> words{};
+
+    const regex word_pattern{ R"(\s+)" };
+    const auto text_begin = sregex_token_iterator(str.cbegin(), str.cend(), word_pattern, -1);
+    const auto text_end = sregex_token_iterator();
+    for (sregex_token_iterator it{text_begin}; it != text_end; ++it) {
+        words.push_back(it->str());
+    }
+
+    return words;
+}
+
+
 /*
     split a string into words using a string stream
 */
+#include <sstream>
+
 vector<string> split_stringstream(const string& s) {
     stringstream sstream{ s };
     vector<string> words{};
@@ -51,6 +68,7 @@ vector<string> split_stringstream(const string& s) {
 
     return words;
 }
+
 
 /*
     cin stream processing
@@ -72,6 +90,7 @@ vector<string> split_stringstream(const string& s) {
      ^ ^
      1 2
 */
+#include <limits>
 
 
 /*
@@ -102,6 +121,7 @@ vector<string> read_many_split() {
     input: 4 this sentence is six words long
     output: {"this", "sentence", "is", "six"}
 */
+#include <algorithm>
 template <typename T>
 vector<T> read_many_istream() {
 	int n{};
@@ -148,6 +168,7 @@ T read_one() {
     return n;
 }
 
+#include <utility>
 template <typename T>
 pair<T,T> read_two() {
     T fst{}, snd{};
@@ -158,6 +179,8 @@ pair<T,T> read_two() {
 }
 
 
+#include <fstream>
+#include <stdlib.h>
 /**
     an error in open() is unchecked and causes a panic
     ofstream calls close() in the destructor
@@ -195,4 +218,23 @@ void show_one(const T value) {
     else {
         cout << value << endl;
     }
+}
+
+
+#include <cassert>
+
+int main(void) {
+    const string line = "one word leads to another";
+    const vector<string> expected{"one", "word", "leads", "to", "another"};
+
+    vector<string> words = split_stringstream(line);
+    assert(words == expected);
+
+    words = split_regex(line);
+    assert(words == expected);
+
+    words = split_regex_token(line);
+    assert(words == expected);
+
+    return 0;
 }
