@@ -29,10 +29,12 @@ vector<string> split_regex(const string& s) {
     vector<string> words{};
 
     const regex word_pattern{ R"(\w+)" };
-    const auto text_begin = sregex_iterator(s.cbegin(), s.cend(), word_pattern);
-    const auto text_end = sregex_iterator();
-    for (sregex_iterator it{text_begin}; it != text_end; ++it) {
-        words.push_back(it->str());
+    sregex_iterator text_itr{ s.cbegin(), s.cend(), word_pattern };
+    const sregex_iterator text_end{};
+
+    while (text_itr != text_end) {
+        words.push_back(text_itr->str());
+        ++text_itr;
     }
 
     return words;
@@ -42,10 +44,12 @@ vector<string> split_regex_token(const string& str) {
     vector<string> words{};
 
     const regex word_pattern{ R"(\s+)" };
-    const auto text_begin = sregex_token_iterator(str.cbegin(), str.cend(), word_pattern, -1);
-    const auto text_end = sregex_token_iterator();
-    for (sregex_token_iterator it{text_begin}; it != text_end; ++it) {
-        words.push_back(it->str());
+    sregex_token_iterator text_itr{ str.cbegin(), str.cend(), word_pattern, -1 };
+    const sregex_token_iterator text_end{ sregex_token_iterator() };
+
+    while (text_itr != text_end) {
+        words.push_back(text_itr->str());
+        ++text_itr;
     }
 
     return words;
