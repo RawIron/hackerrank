@@ -7,43 +7,37 @@
 using namespace std;
 
 
-typedef int ParseErrorCode;
+namespace Parse {
+
+typedef int StatusCode;
 
 namespace {
-    constexpr ParseErrorCode Ok{ 0 };
-    constexpr ParseErrorCode NoStartTagFound{ -10 };
-    constexpr ParseErrorCode MissingClose{ -11 };
-    constexpr ParseErrorCode MissingEnd{ -12 };
+    constexpr StatusCode Ok{ 0 };
+    constexpr StatusCode NoStartTagFound{ -10 };
+    constexpr StatusCode MissingClose{ -11 };
+    constexpr StatusCode MissingEnd{ -12 };
 };
 
-typedef string Block;
-
 typedef struct {
-    ParseErrorCode status;
-    Block block;
-    string::const_iterator pos_code;
-} ParseStatus;
-
-typedef struct {
-    Block block;
+    string block;
     string::const_iterator pos_code;
     const string& code;
 } ParseState;
 
-typedef map<Block, string> SymbolTable;
+typedef map<string, string> SymbolTable;
 
 
 /**
  *
  */
-ParseStatus match_start(ParseState parse_state) {
-    auto [block, pos_code, code] = parse_state;
+StatusCode match_start(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
 
     const regex start_tag{ R"(<(\w+))" };  // (<(tagname))
 
     sregex_iterator match_itr{ pos_code, code.cend(), start_tag };
     sregex_iterator stop;
-    if (match_itr == stop) { return { NoStartTagFound, block, pos_code }; }
+    if (match_itr == stop) { return NoStartTagFound; }
 
     const smatch& match{ *match_itr };
     const string tag_name{ match[1] };
@@ -53,15 +47,15 @@ ParseStatus match_start(ParseState parse_state) {
     else {
         block += "." + tag_name;
     }
+    pos_code = match.suffix().first;  // advance the scanning position past the match
     
     for (size_t i{0}; i < match.size(); ++i) {
         cout << match[i] << endl;
     }
-    pos_code = match.suffix().first;  // advance the scanning position past the match
+    cout << block << " " << distance(code.cbegin(), pos_code);
 
-    return { Ok, block, pos_code };
+    return Ok;
 }
-
 
 /**
  * match for regex does not contain all capture groups!
@@ -71,8 +65,8 @@ ParseStatus match_start(ParseState parse_state) {
             final
             final
  */
-ParseStatus match_attributes_fail(ParseState parse_state) {
-    auto [block, pos_code, code] = parse_state;
+StatusCode match_attributes_fail(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
 
     // (name  =  "value") (key = "number") ..
     const regex attribute{ R"((\s*(\w+)\s*=\s*\"(\w+)\")+)" };    
@@ -87,18 +81,18 @@ ParseStatus match_attributes_fail(ParseState parse_state) {
         }
         pos_code = match.suffix().first;
     }
-    return {Ok, block, pos_code};
+    return Ok;
 }
 
 
 
-ParseStatus match_attributes_token(ParseState parse_state) {
-    auto [block, pos_code, code] = parse_state;
+StatusCode match_attributes_token(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
     sregex_iterator stop;
 
     const regex close_tag{ R"(\s*>)" };  // (>) or (   >)
     sregex_iterator close_itr{ pos_code, code.cend(), close_tag };     
-    if (close_itr == stop) { return { MissingClose, block, pos_code }; }
+    if (close_itr == stop) { return MissingClose; }
 
     const smatch& match_close{ *close_itr };
     string::const_iterator pos_close{ match_close.suffix().first };
@@ -114,18 +108,18 @@ ParseStatus match_attributes_token(ParseState parse_state) {
     }
     // advance pos_code ??
     
-    return {Ok, block, pos_code};
+    return Ok;
 }
 
 
-ParseStatus match_attributes_itr(ParseState parse_state) {
-    auto [block, pos_code, code] = parse_state;
+StatusCode match_attributes_itr(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
 
     sregex_iterator stop;
 
     const regex close_tag{ R"(\s*>)" };  // (>) || (   >)
     sregex_iterator close_itr{ pos_code, code.cend(), close_tag };     
-    if (close_itr == stop) { return { MissingClose, block, pos_code }; }
+    if (close_itr == stop) { return MissingClose; }
 
     const smatch& match_close{ *close_itr };
     for (auto sub : match_close) {
@@ -145,52 +139,18 @@ ParseStatus match_attributes_itr(ParseState parse_state) {
         ++match_itr;
         pos_code = match.suffix().first;
     }
-    
-    return {Ok, block, pos_code};
+    cout << distance(code.cbegin(), pos_code);
+
+    return Ok;
 }
 
+StatusCode match_close(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
 
-/**
- *  parse nested tags like
- *      <tag1 name = "name1"> <tag2 key = "value" word = "token"> </tag2> </tag1>
- *
- */
-ParseStatus parse_tag(ParseState parse_state) {
-    auto [block, pos_code, code] = parse_state;
-
-    sregex_iterator stop;    
-
-    // start tag
-    const regex start_tag{ R"(<(\w+))" };  // (<tagname)
-    sregex_iterator start_itr{ pos_code, code.cend(), start_tag };
-    if (start_itr == stop) { return { NoStartTagFound, block, pos_code }; }
-
-    const smatch& match{ *start_itr };
-    const string tag_name{ match[1] };
-    if (block.empty()) {
-        block = tag_name;
-    }
-    else {
-        block += "." + tag_name;
-    }
-    pos_code = match.suffix().first;  // advance the scanning position past the match
-    
-    for (size_t i{0}; i < match.size(); ++i) {
-        cout << match[i] << endl;
-    }
-    cout << block << " " << distance(code.cbegin(), pos_code);
-    
-    // optional attributes
-    auto [status, blck, pos] = match_attributes_itr( {block, pos_code, code} );
-    if (status != 0) { return {status, blck, pos}; }
-    pos_code = pos;
-    block = blck;
-    cout << distance(code.cbegin(), pos_code);
-    
-    // close tag
+    sregex_iterator stop;
     const regex close_tag{ R"(\s*>)" };  // (>) || (   >)
     sregex_iterator close_itr{ pos_code, code.cend(), close_tag };     
-    if (close_itr == stop) { return { MissingClose, block, pos_code }; }
+    if (close_itr == stop) { return MissingClose; }
 
     const smatch& match_close{ *close_itr };
     pos_code = match_close.suffix().first;
@@ -200,22 +160,17 @@ ParseStatus parse_tag(ParseState parse_state) {
     }
     cout << distance(code.cbegin(), pos_code);
     
-    // nested start tag
-    sregex_iterator nested_itr{ pos_code, code.cend(), start_tag };
-    if (nested_itr != stop) {
-        auto [status, blck, pos] = parse_tag( {block, pos_code, code} );
-        if (status != 0) {
-            return {status, blck, pos};
-        }
-        pos_code = pos;
-        block = blck;
-    }
-    cout << distance(code.cbegin(), pos_code);
-    
-    // end tag
+    return Ok;
+}
+
+
+StatusCode match_end(ParseState& parse_state) {
+    auto& [block, pos_code, code] = parse_state;
+
+    sregex_iterator stop;
     const regex end_tag{ R"(</(\w+)>)" };  // (</tagname>)
     sregex_iterator end_itr{ pos_code, code.cend(), end_tag };     
-    if (end_itr == stop) { return {MissingEnd, block, pos_code}; }
+    if (end_itr == stop) { return MissingEnd; }
 
     const smatch& match_end{ *end_itr };
     pos_code = match_end.suffix().first;
@@ -228,25 +183,62 @@ ParseStatus parse_tag(ParseState parse_state) {
         block = block.substr(0, pos_dot);     
     }
 
-
     for (auto sub : match_end) {
         cout << sub << endl;
     }
     cout << block << " " << distance(code.cbegin(), pos_code);
     
-    return {Ok, block, pos_code};  
+    return Ok;   
+}
+
+
+/**
+ *  parse nested tags like
+ *      <tag1 name = "name1"> <tag2 key = "value" word = "token"> </tag2> </tag1>
+ *
+ */
+StatusCode parse_tag(ParseState& parse_state) {
+    StatusCode status{};
+    
+    // start tag
+    status = match_start( parse_state );
+    if (status != 0) { return status; }
+    
+    // optional attributes
+    status = match_attributes_itr( parse_state );
+    if (status != 0) { return status; }
+    
+    // close tag
+    status = match_close( parse_state );
+    if (status != 0) { return status; }
+    
+    // nested start tag
+    sregex_iterator stop;
+    const regex start_tag{ R"(<(\w+))" };  // (<(tagname))
+    sregex_iterator nested_itr{ parse_state.pos_code, parse_state.code.cend(), start_tag };
+    if (nested_itr != stop) {
+        status = parse_tag( parse_state );
+        if (status != 0) { return status; }
+    }
+    
+    // end tag
+    match_end( parse_state );
+    if (status != 0) { return status; }
+
+    return Ok;
 }
 
 
 void parse(const string& code) {
     string::const_iterator pos{ code.cbegin() };
-
-    while (pos != code.cend()) {
-        auto [status, block, pos_code] = parse_tag( {{}, pos, code} );
+    ParseState state{ {}, pos, code };
+    StatusCode status{};
+    
+    while (state.pos_code != code.cend()) {
+        status = parse_tag( state );
         if (status != Ok) {
             break;
         }
-        pos = pos_code;
     }
 }
 
@@ -262,7 +254,9 @@ void run_test() {
     code = "<tag1 value = \"value\"   final=\"final\"> <tag2 name = \"name\"> <tag3 another=\"another\" final=\"final\"> </tag3> </tag2> </tag1>";
     //      ^   ^                                    ^     ^                ^     ^                                    ^       ^       ^       ^
     //      0   4                                    37    43               58    64                                   97      105     113      121
-     
+    
+}
+
 }
 
 
@@ -297,8 +291,8 @@ int main() {
     const string code{ read_source(lines_total) };
     vector<string> queries{ read_queries(queries_total)};
     
-    parse(code);
-    answer(queries);
+    Parse::parse(code);
+    Parse::answer(queries);
     
     return EXIT_SUCCESS;
 }
