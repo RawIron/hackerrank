@@ -19,11 +19,11 @@ Matrix matrix_fill(const size_t n, const size_t m,  const function<int(size_t,si
         for (size_t j=0; j < m; ++j) {
             b.push_back( func(i, j) );
         }
-        result.push_back(b); 
+        result.push_back(b);
     }
 
     return result;
-}  
+}
 
 /**
  *  fold over a 2D matrix
@@ -47,7 +47,7 @@ T matrix_fold(const Matrix& m, const function<T(T, const int, const bool)>& func
                 acc = func(acc, m[i][j], true);
             }
             else {
-                acc = func(acc, m[i][j], false); 
+                acc = func(acc, m[i][j], false);
             }
         }
     }
@@ -59,7 +59,7 @@ T matrix_fold(const Matrix& m, const function<T(T, const int, const bool)>& func
 Matrix operator+(const Matrix& lhs, const Matrix& rhs) {
     const size_t n{ lhs.size() };
     const size_t m{ lhs[0].size() };
-    
+
     return
     matrix_fill(n, m, [lhs, rhs](size_t i, size_t j) { return lhs[i][j] + rhs[i][j]; } );
 }
@@ -98,9 +98,9 @@ int main () {
         Matrix x{ read(n, m) };
         Matrix y{ read(n, m) };
 
-        Matrix result{ x+y };       
+        Matrix result{ x+y };
         show(result);
    }
-  
+
    return EXIT_SUCCESS;
 }
