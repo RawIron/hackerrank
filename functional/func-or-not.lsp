@@ -1,6 +1,10 @@
 ;;; is a list of (x,y) pairs taken from a function
 
 
+(defun empty (lst)
+  (null lst))
+
+
 ;;  read a value
 (defun input1 ()
   (read))
@@ -36,6 +40,16 @@
         (return-from func-valuesp nil)))
     t))
 
+;;  (x,y) pairs are unique and sorted
+;;  x values must be unique
+(defun func-sorted-valuesp (pairs)
+  (let ((prev-x (first (first pairs))))
+    (dolist (p (rest pairs))
+      (if (= (first p) prev-x)
+        (return-from func-sorted-valuesp nil)
+        (setf prev-x (first p))))
+    t))
+
 
 (defun main ()
   (let ((tests (input1)))
@@ -48,4 +62,3 @@
           (format t "NO~%"))))))
 
 (main)
-
