@@ -5,6 +5,11 @@
   (mapcar #'list lst1 lst2))
 
 
+(defun midpoint (a b)
+  "return the arithmetic midpoint of a and b"
+  (/ (+ a b) 2))
+
+
 (defun split-string-to-words (str)
   (with-input-from-string (stream str)
     (loop
@@ -27,6 +32,15 @@
   (split-string-to-words (read-line)))
 
 
+;;  calculate volume of a cylinder
+(defun cylinder_volume (radius height)
+  (* height (* pi (expt radius 2))))
+
+;;  calculate area of a rectangle
+(defun rectangle_area (width height)
+  (* width height))
+
+
 ;;  calculate y value of a polynom
 ;;
 ;;  polynom described by a list of pairs
@@ -45,16 +59,23 @@
 
 
 ;;  approximate area and volume
+;;  for a polynomial function
+;;  over the interval [a,b]
+;;  using Obersumme
 (defun calc-area-volume (range polynom)
-  (let ((y 0.0d0)
+  (let* ((y 0.0d0)
+        (a (first range))
+        (b (second range))
+        (prev-y (calc-polynom a polynom))
         (step 0.001d0)
         (area 0.0d0)
         (volume 0.0d0))
-    (do ((x (+ (first range) step) (+ x step)))
-        ((> x (second range)) 'done)
+    (do ((x (+ a step) (+ x step)))
+        ((> x b) 'done)
       (setf y (calc-polynom x polynom))
-      (setf area (+ area (* step y)))
-      (setf volume (+ volume (* step (* pi (expt y 2))))))
+      (setf area (+ area (rectangle_area step (max prev-y y))))
+      (setf volume (+ volume (cylinder_volume (max prev-y y) step)))
+      (setf prev-y y))
     (list area volume)))
 
 
