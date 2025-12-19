@@ -63,19 +63,21 @@
 ;;  over the interval [a,b]
 ;;  using Obersumme
 (defun calc-area-volume (range polynom)
-  (let* ((y 0.0d0)
-        (a (first range))
+  (let* ((a (first range))
         (b (second range))
-        (prev-y (calc-polynom a polynom))
         (step 0.001d0)
+        (prev-y (calc-polynom a polynom))
         (area 0.0d0)
         (volume 0.0d0))
     (do ((x (+ a step) (+ x step)))
         ((> x b) 'done)
-      (setf y (calc-polynom x polynom))
-      (setf area (+ area (rectangle_area step (max prev-y y))))
-      (setf volume (+ volume (cylinder_volume (max prev-y y) step)))
-      (setf prev-y y))
+      (let* ((y (calc-polynom x polynom))
+            (pick #'max)
+            (rectangle (rectangle_area step (funcall pick prev-y y)))
+            (cylinder (cylinder_volume (funcall pick prev-y y) step)))
+        (setf area (+ area rectangle))
+        (setf volume (+ volume cylinder))
+        (setf prev-y y)))
     (list area volume)))
 
 
