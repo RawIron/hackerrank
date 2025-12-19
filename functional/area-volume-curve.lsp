@@ -10,6 +10,7 @@
   (/ (+ a b) 2))
 
 
+;;  "the words are here" == (list "the" "words" "are" "here")
 (defun split-string-to-words (str)
   (with-input-from-string (stream str)
     (loop
@@ -20,24 +21,25 @@
       :collect word)))
 
 
-;;  print elements of any list
 (defun output (lst)
+  "print elements of any list"
   (dolist (elem lst)
     (format t "~A~%" elem)))
 
 (defun input-pair ()
+  "parse 2 objects with read from *stdin*"
   (list (read) (read)))
 
 (defun input ()
   (split-string-to-words (read-line)))
 
 
-;;  calculate volume of a cylinder
 (defun cylinder_volume (radius height)
+  "calculate volume of a cylinder"
   (* height (* pi (expt radius 2))))
 
-;;  calculate area of a rectangle
 (defun rectangle_area (width height)
+  "calculate area of a rectangle"
   (* width height))
 
 
@@ -50,6 +52,7 @@
 ;;  (2 ((2 1) (1 2))) == 8
 ;;       2x  + x^2
 (defun calc-polynom (x p)
+  "evaluate a polynom at x"
   (let ((y 0.0d0))
     (dolist (term p)
       (let ((coef (first term))
@@ -78,15 +81,16 @@
         (setf area (+ area rectangle))
         (setf volume (+ volume cylinder))
         (setf prev-y y)))
-    (list area volume)))
+    (values area volume)))
 
 
 (defun main ()
   (let* ((coef (input))
         (expo (input))
-        (range (input-pair))
-        (result (calc-area-volume range (zip coef expo))))
-    (format t "~D~%" (first result))
-    (format t "~D~%" (second result))))
+        (range (input-pair)))
+    (multiple-value-bind (area volume)
+        (calc-area-volume range (zip coef expo))
+      (format t "~D~%" area)
+      (format t "~D~%" volume))))
 
 (main)
