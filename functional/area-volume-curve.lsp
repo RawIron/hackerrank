@@ -1,4 +1,25 @@
-;;;
+;;; Example
+;;
+;;  p(x) = 2x + 1, [2,20]
+;;
+;;  area = rectangle + triangle
+;;       = (5 * 18) + (36 * 18 * 0.5)
+;;       = 414
+;;
+;;  volume = conical cylinder
+;;              height 18
+;;              larger base radius  R 41
+;;              smaller base radius r 5
+;;         = 1/3 pi * 18 * (41^2 + 41 * 5 + 5^2)
+;;         = 36021.5
+;;
+;;  relative error = (exact - approximate) / exact
+;;                 = (36021 - 36018) / 36021
+;;                 = 0.00008
+;;                 < 0.01
+;;
+;;        hackerrank expected output
+;;          36024.1 with a relative error 0.01 ????
 
 
 (defun zip (lst1 lst2)
@@ -88,7 +109,7 @@
   (let* ((coef (input))
         (expo (input))
         (range (input-pair)))
-    (multiple-value-bind (area volume)
+    (multiple-value-bind (area volume) 
         (calc-area-volume range (zip coef expo))
       (format t "~D~%" area)
       (format t "~D~%" volume))))
