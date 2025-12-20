@@ -1,4 +1,6 @@
-;;; Example
+;;; Numeric Integration of Polynoms
+;;
+;;; Example: Linear Function
 ;;
 ;;  p(x) = 2x + 1, [2,20]
 ;;
@@ -6,11 +8,21 @@
 ;;       = (5 * 18) + (36 * 18 * 0.5)
 ;;       = 414
 ;;
+;;  area = integrate( 2x+1 ) [2,20]
+;;       = integral( x^2 + x ) [2,20]
+;;       = (420 - 6)
+;;       = 414
+;;
 ;;  volume = conical cylinder
 ;;              height 18
 ;;              larger base radius  R 41
 ;;              smaller base radius r 5
 ;;         = 1/3 pi * 18 * (41^2 + 41 * 5 + 5^2)
+;;         = 36021.5
+;;
+;;  volume = integrate( pi (2x+1)^2 ) [2,20]
+;;         = integral( (4/3)x^3 + 2x^2 + x ) [2,20] * pi
+;;         = (11486.7 - 20.7) * pi
 ;;         = 36021.5
 ;;
 ;;  relative error = (exact - approximate) / exact
